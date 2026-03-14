@@ -1,0 +1,29 @@
+{
+  "name": "deepseek-note-helper",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "leoyang1984",
+  "license": "MIT",
+  "description": "",
+  "devDependencies": {
+    "@tsconfig/svelte": "^5.0.8",
+    "@types/node": "^25.3.2",
+    "@typescript-eslint/eslint-plugin": "^8.56.1",
+    "@typescript-eslint/parser": "^8.56.1",
+    "esbuild": "^0.27.3",
+    "eslint": "^10.0.2",
+    "html-to-md": "^0.8.8",
+    "obsidian": "^1.12.3",
+    "svelte": "^5.53.5",
+    "svelte-check": "^4.4.4",
+    "svelte-preprocess": "^6.0.3",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "svelte-feather-icons": "^4.2.0"
+  }
+}
