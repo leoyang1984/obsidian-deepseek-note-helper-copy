@@ -3,13 +3,10 @@ tags:
   - obsidian-plugin
   - deepseek
   - ai-assistant
-  - documentation
-  - readme
-  - user-guide
-  - plugin-installation
-  - feature-overview
-  - knowledge-management
-  - product-introduction
+  - agentic-workflow
+  - pipeline
+  - light-skills
+  - second-brain
 ---
 # Obsidian DeepSeek Plugin (DeepSeek Note Helper)
 
@@ -19,120 +16,89 @@ tags:
 
 ## English Version
 
-A powerful plugin dedicated to seamlessly integrating **DeepSeek AI** into your Obsidian knowledge base workflow.
+A powerful, **Agentic Workflow Engine** designed to transform your Obsidian knowledge base into a living "Second Brain". This plugin goes beyond simple chat—it enables sequential, multi-step AI reasoning directly within your notes.
 
-By summoning your personal AI assistant in the sidebar, it not only **reads and understands your notes**, but also **deeply penetrates your bidirectional links**, performs **vault-wide searches**, and **automatically manages your note metadata (YAML Properties)**. It is your ultimate tool for building a "Second Brain".
+### 🌟 V3 Breakthrough: Agentic Pipeline System
+The latest version introduces **Light Skills**, a Markdown-based DSL that allows you to build complex AI workflows without writing code.
+- **Sequential Multi-Step Reasoning**: AI can perform a series of tasks, passing data from one step to the next.
+- **Human-in-the-Loop**: High-stakes steps can pause and display **Manual Intervention Cards** in the sidebar, waiting for your approval or edit before proceeding.
+- **Variable Injection**: Automatically inject `{{selection}}`, `{{title}}`, and previous step results into your prompts.
+- **Headless Processing**: Run complex background tasks (like bulk metadata updates) without UI clutter.
 
 ---
 
-### 🌟 Core Highlights (Features)
+### 🚀 Core Features
 
-#### 1. 🤖 A True "Knowledge Base Roaming Assistant"
-- **Current Note Awareness**: Open any note, and the DeepSeek sidebar will automatically read its full content as memory context. You can directly ask: "Help me summarize this note" or "Polish the third paragraph".
-- **Local Precision Focus (Selection Focus)**: **Highlight a piece of text** in the editor, and the AI will automatically lock onto it as the focus. Even if you lose focus by clicking into the sidebar to type, the plugin has **selection memory** to accurately answer questions regarding that specific highlighted text.
+#### 1. 🤖 Multi-Provider Support (DeepSeek, Kimi, etc.)
+- Supports any OpenAI-compatible API. Native optimizations for **DeepSeek** and **Kimi**.
+- Switch models seamlessly in settings to balance speed, cost, and reasoning power.
 
-#### 2. 🔗 Bidirectional Link Context (Deep Resolution)
-- AI is no longer "blindly feeling the elephant". If your current note contains `[[Bidirectional Links]]` pointing to other notes, the plugin will automatically follow the trail in the background, **feeding the content of the linked notes to the AI as well**.
-- *Scenario Experience*: When reading "Project Architecture Design", if it references `[[Database Table Structure]]`, the AI can dynamically combine the content of both articles to provide a comprehensive answer.
+#### 2. 🧠 Native Tool Calling (RAG & Management)
+- **`search_vault`**: RAG-level vault-wide search to ground AI answers in your existing knowledge.
+- **`create_note` & `append_to_note`**: Automate note creation and capture ideas from chat directly into your files.
+- **`update_metadata`**: Hands-free management of YAML Properties. Ask AI to "categorize this note" and watch it update your tags automatically.
 
-#### 3. 🧠 Agentic Tool Calling (RAG & Vault Search)
-- **Native Support for DeepSeek Function Calling**. When the AI determines that your request goes beyond the current note, it will automatically summon the following advanced magic tools:
-  - **`search_vault` (Vault Search)**: Supports RAG-level (Retrieval-Augmented Generation) vault-wide search exploration.
-  - **`create_note` (Create Note)**: It can create a brand new, well-formatted Markdown note in a specified folder based on your instructions.
-  - **`append_to_note` (Append Record)**: Tell the AI to automatically "clip" the inspiration or summary you just discussed and seamlessly paste it to the end of a specified existing note.
-  - **`modify_files_in_directory` (Bulk Directory Modification Review)**: When you ask it to make bulk modifications to an entire directory (e.g., `/Diary`), it will first scan all `.md` files in that directory. For safety, it will not overwrite the whole vault unauthorized, but will report the scanned files in the sidebar, ready to assist you in modifying them one by one using `update_metadata` or `append_to_note` in subsequent conversations.
+#### 3. 🔗 Deep Context Awareness
+- **Selection Focus**: Highlight text in the editor, and the AI will lock onto it, even if you navigate away.
+- **Bidirectional Link Resolution**: AI "follows the trail" of `[[Links]]`, reading linked notes to provide comprehensive, context-aware answers.
 
-#### 4. 🎛️ Metadata Automation Manager (YAML / Properties)
-- The AI possesses the **`update_metadata`** tool with top-level rewrite permissions.
-- You no longer need to manually add tags. You can instruct it: "Based on the core idea of this article, automatically add appropriate tags in the Properties area, and change the status to active." **The AI will automatically update the YAML Frontmatter for you, completely hands-free.**
-
-#### 5. ⚡ Silky Smooth Interactive Experience
-- **One-Click Copy**: Every AI-generated response has a Copy button in the top right corner, allowing you to quickly extract organized thoughts to your clipboard and seamlessly integrate them back into your notes.
-- **Native Markdown Rendering**: All complex formatting (bold, lists, code blocks) is rendered perfectly using Obsidian's native `MarkdownRenderer`.
-- **Quick Enter to Send**: Supports `Enter` to send messages and `Shift + Enter` to insert a new line.
-- **10-Round Coherent Context Memory**: Just like using the ChatGPT web version, it remembers past chat context, ensuring your train of thought doesn't break.
+#### 4. 🛠️ Skill Architect (AI Metadata Generator)
+- Use our built-in **Skill Architect** pipeline to help you *generate new skills*. Just describe what you want the AI to do, and it will write the Markdown DSL for you.
 
 ---
 
 ### 🛠️ Installation & User Guide
 
-#### 1. Installation Method
-This plugin is developed using a minimalist native pure TypeScript approach, without relying on any bloated third-party frameworks.
-1. Download the latest compiled plugin release zip (containing `main.js`, `styles.css` and `manifest.json`).
-2. Find the hidden `.obsidian/plugins/` folder in your Obsidian vault directory.
-3. Create a new folder named `obsidian-deepseek-note-helper` and place the three files inside.
-4. Restart Obsidian, and enable this plugin in **Settings -> Community Plugins**.
-
-#### 2. Configure DeepSeek API
-1. Click the "gear" icon on the left side of the sidebar to enter the settings interface.
-2. Find this plugin and enter your **DeepSeek API Key** (`sk-xxxxxxxxxx`) in the configuration.
-3. (Optional) If you use a proxy API or deploy a local large model, you can modify the `API URL` and `Model` name here.
-
-#### 3. Start Using
-Click the 🤖 (Robot) icon on the left ribbon to wake up your DeepSeek assistant in the right sidebar!
-
----
-*For the future roadmap, please refer to the `ROADMAP.md` file in the plugin directory. Let's build a knowledge garden with AI!*
-
-<br>
-<br>
-<br>
+1. **Manual Install**: Download the latest Release (containing `main.js`, `styles.css`, `manifest.json`).
+2. **Directory**: Place files in `.obsidian/plugins/obsidian-deepseek-note-helper/`.
+3. **Configure**: Enter your **API Key** in settings and choose your provider.
+4. **Documentation**:
+    - [Light Skills Guide V3](docs/LIGHT_SKILLS_GUIDE-V3.md) - **Required Reading** for workflow creation.
+    - [Architecture Manual](docs/MANUAL_ARCHITECT.md).
 
 ---
 
 ## 中文版
 
-一个致力于将 **DeepSeek AI** 无缝融入您的 Obsidian 知识库工作流的强大插件。
+这不仅是一个侧边栏聊天插件，更是一个为 Obsidian 打造的**智能代理工作流引擎 (Agentic Workflow Engine)**。它允许您通过简单的 Markdown 定义多步 AI 推理过程，深度挖掘您的知识库潜能。
 
-通过在侧边栏唤出您的随身 AI 助理，它不仅能**阅读和理解您的笔记**，还能**深度穿透您的双向链接**、**全库检索**、并**自动化管理您的笔记元数据(Metadata)**，是您打造“第二大脑”的终极利器。
-
----
-
-### 🌟 核心亮点功能 (Highlights)
-
-#### 1. 🤖 真正的“知识库漫游助手”
-- **当前笔记感知**：打开任何笔记，侧边栏的 DeepSeek 将自动读取其全文内容作为记忆上下文。您可以直接询问：“帮我总结这篇笔记”或“润色第三段落”。
-- **局部精准聚焦 (Selection Focus)**：编辑器里**高亮选中**一段文字，AI 将自动锁定其为焦点。即使您鼠标点入侧边栏打字导致高亮消失，插件也拥有**选择记忆**，精准回答针对这段话的提问。
-
-#### 2. 🔗 双向链接深度解析 (Bidirectional Context)
-- AI 不再只会“盲人摸象”。如果您的当前笔记包含指向其他笔记的 `[[双向链接]]`，插件会在后台自动顺藤摸瓜，**将关联笔记的内容一并喂给 AI**。
-- *场景体验*：在阅读《项目架构设计》时，如果里面引用了 `[[数据库表结构]]`，AI 就能在回答时结合这两篇文章的内容为您进行综合解答。
-
-#### 3. 🧠 Agentic 工具调用 (RAG & 全库检索)
-- **原生支持 DeepSeek Function Calling**。当 AI 判断您的需求超出现有笔记时，它会自动召唤以下高级魔法工具：
-  - **`search_vault` (全库搜索)**：支持 RAG (检索增强生成) 级别的全库搜索探索。
-  - **`create_note` (新建笔记)**：它可以根据您的指令，在指定的文件夹创建全新的 Markdown 笔记并生成排版好的内容。
-  - **`append_to_note` (追加记录)**：它可以像做摘录一样，把你们聊出来的灵感或某段总结，自动“无缝粘贴”到您指定的现有笔记的末端。
-  - **`modify_files_in_directory` (全卷查阅与批量预审)**：当您要求它对某整个目录（例如 `/日记`）进行批量修改时，它会先自动扫描出该目录下所有的 `md` 文件。为了安全起见，它不会擅自一键覆写全库，而是会在侧边栏报告它扫描到了哪些文件，并准备在后续对话中根据您的需要逐个使用 `update_metadata` 或 `append_to_note` 对这些文件进行调整。
-
-#### 4. 🎛️ 元数据自动化管家 (YAML / Properties)
-- AI 拥有最高改写权限的 **`update_metadata`** 工具。
-- 不再需要手动打标签。您可以对它下达指令：“根据这篇文章的核心思想，自动在属性(Properties)区添加合适的 tags，并把 status 改成 active”。**AI 会自动为您更新 YAML Frontmatter，全程无需动手。**
-
-#### 5. ⚡ 丝滑流畅的使用交互
-- **一键复制 (Copy)**：每条 AI 生成的回复右上角均配有一键 Copy 按钮，方便您将整理好的思路快速提取到剪贴板，随后无缝融合回笔记里。
-- **原生 Markdown 渲染**：利用 Obsidian 原生的 `MarkdownRenderer`，所有的复杂排版（加粗、列表、代码块）都能被完美呈现。杜绝焦躁的等待时间。
-- **快捷回车发送**：支持 `Enter` 发送消息，`Shift + Enter` 换行输入。
-- **10 轮记忆连贯对话**：像使用 ChatGPT 网页版一样，它会记住过去的聊天上下文，让思想的递进不断链。
+### 🌟 V3 重大突破：智能管道系统 (Pipeline)
+最新版本引入了 **Light Skills** 系统，通过 Markdown 即可构建复杂的 AI 工作流：
+- **顺序多步推理**：AI 可以执行一系列任务，并将上一步的结果作为下一步的输入。
+- **人机协同 (Human-in-the-Loop)**：关键步骤会弹出**人工干预卡片**，您可以修改 AI 的中间产物或点击确认后再继续执行。
+- **动态变量注入**：自动将 `{{selection}}` (选中文本)、`{{title}}` 和历史步骤产物注入 Prompt。
+- **静默后台执行**：支持无需 UI 干扰的后台任务（如批量更新元数据）。
 
 ---
 
-### 🛠️ 安装与使用教程
+### 🚀 核心亮点
 
-#### 1. 安装方法
-本插件采用极简原生的纯 TypeScript 方案开发，不依赖任何第三方臃肿框架。
-1. 下载最新编译的插件 Release 压缩包（包含 `main.js`、`styles.css` 和 `manifest.json`）。
-2. 在您的 Obsidian 笔记库目录下，找到隐藏的 `.obsidian/plugins/` 文件夹。
-3. 新建一个名为 `obsidian-deepseek-note-helper` 的文件夹，将这三个文件放入其中。
-4. 重启 Obsidian，在 **设置 -> 第三方插件 (Community Plugins)** 中启用本插件。
+#### 1. 🤖 多模型支持 (DeepSeek, Kimi 等)
+- 支持任何兼容 OpenAI 格式的 API。针对 **DeepSeek** 和 **Kimi** 进行了原生优化。
+- 在设置中自由切换，兼顾速度、成本与复杂推理能力。
 
-#### 2. 配置 DeepSeek API
-1. 点击侧边栏左侧的“齿轮”图标进入设置界面。
-2. 找到本插件，在配置项中填入您的 **DeepSeek API Key** (`sk-xxxxxxxxxx`)。
-3. （可选）如果您使用中转代理 API 或者部署了本地大模型，可以在此处修改 `API URL` 和 `Model` 名称。
+#### 2. 🧠 原生工具调用 (RAG 与管理)
+- **`search_vault`**：RAG 级别的全库搜索，让 AI 的回答基于您的真实笔记。
+- **`create_note` 与 `append_to_note`**：自动创建新笔记，或将聊天灵感一键追加到现有文件末尾。
+- **`update_metadata`**：全自动 YAML 属性管理。只需说“帮我分类”，AI 就会自动补全标签。
 
-#### 3. 开始使用
-点击左侧功能丝带 (Ribbon) 上的 🤖 (机器人) 图标，即可在右侧边栏唤醒您的 DeepSeek 助手！
+#### 3. 🔗 深度上下文感知
+- **局部精准聚焦**：即便切换了页面，AI 也会牢牢记住您刚才高亮选中的内容。
+- **双向链接穿透**：AI 会顺着 `[[双向链接]]` 在后台阅读关联笔记，拒绝“盲人摸象”。
+
+#### 4. 🛠️ 技能架构师 (AI 辅助生成)
+- 内置 **Skill Architect** 管道。只要描述您的需求，AI 就会为您写好用于定义新技能的 Markdown 脚本。
 
 ---
-*未来路线图敬请参考插件目录下的 `ROADMAP.md` 文件。与 AI 共建知识花园！*
+
+### 🛠️ 安装与使用
+
+1. **手动安装**：下载最新的 Release 包（包含 `main.js`、`styles.css` 和 `manifest.json`）。
+2. **存放目录**：放在 `.obsidian/plugins/obsidian-deepseek-note-helper/` 下。
+3. **配置**：在设置中填入 **API Key** 并选择服务商。
+4. **必看文档**：
+    - [轻技能 V3 指南](docs/LIGHT_SKILLS_GUIDE-V3.md) - 构建自动化流的必读手册。
+    - [架构师手册](docs/MANUAL_ARCHITECT.md)。
+
+---
+*与 AI 共建您的数字花园！*
