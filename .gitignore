@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+main.js
+plugin-release（obsidian-deepseek-note-helper）/
+plugin-release（obsidian-deepseek-note-helper）-V2.zip
+
+# Obsidian local settings (where API Keys are stored)
+test-vault/.obsidian/
+
+# macOS system files
+.DS_Store
+
+# Potential secrets
+.env
+data.json
+*.log
