@@ -1,5 +1,6 @@
 import { Plugin, WorkspaceLeaf } from 'obsidian';
 import { DeepSeekView, DEEPSEEK_VIEW_TYPE } from './view';
+import { ExecutionLogger } from './logger';
 
 interface DeepSeekSettings {
     provider: string;
@@ -8,6 +9,7 @@ interface DeepSeekSettings {
     apiUrl: string;
     model: string;
     skillsDirectory: string;
+    logDirectory: string;
 }
 
 const DEFAULT_SETTINGS: DeepSeekSettings = {
@@ -21,7 +23,8 @@ const DEFAULT_SETTINGS: DeepSeekSettings = {
     },
     apiUrl: 'https://api.deepseek.com',
     model: 'deepseek-chat',
-    skillsDirectory: 'DeepSeek-Skills'
+    skillsDirectory: 'DeepSeek-Skills',
+    logDirectory: 'DeepSeek-Logs'
 }
 
 import { SkillManager } from './skillManager';
@@ -29,6 +32,7 @@ import { SkillManager } from './skillManager';
 export default class DeepSeekPlugin extends Plugin {
     settings: DeepSeekSettings = DEFAULT_SETTINGS;
     skillManager!: SkillManager;
+    logger: ExecutionLogger = new ExecutionLogger();
 
     async onload() {
         await this.loadSettings();
@@ -176,9 +180,18 @@ class DeepSeekSettingTab extends PluginSettingTab {
                 .setValue(this.plugin.settings.skillsDirectory)
                 .onChange((value) => {
                     this.plugin.settings.skillsDirectory = value;
-                    void this.plugin.saveSettings().catch(console.error);
                     // Reload skills if directory changes
                     void this.plugin.skillManager.loadSkills().catch(console.error);
+                }));
+
+        new Setting(containerEl)
+            .setName('Log export directory')
+            .setDesc('Folder where execution logs will be exported (e.g. DeepSeek-Logs).')
+            .addText(text => text
+                .setValue(this.plugin.settings.logDirectory)
+                .onChange(async (value) => {
+                    this.plugin.settings.logDirectory = value;
+                    await this.plugin.saveSettings();
                 }));
     }
 }

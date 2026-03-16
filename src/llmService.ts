@@ -37,6 +37,7 @@ export class LlmService {
         };
 
         try {
+            this.plugin.logger.log('api', 'system', `Sending request to ${provider}`, { model, messages });
             const response = await requestUrl({
                 url: endpoint,
                 method: 'POST',
@@ -44,18 +45,31 @@ export class LlmService {
                 body: JSON.stringify(payload)
             });
 
+            // Check if user stopped while waiting for network
+            const leaves = this.plugin.app.workspace.getLeavesOfType('deepseek-chat-view');
+            const view = leaves[0]?.view as any;
+            if (view && view.stopRequested) {
+                this.plugin.logger.log('api', 'system', 'Request returned but stop was requested. Aborting.');
+                throw new Error('STOPPED_BY_USER');
+            }
+
             if (response.status !== 200) {
-                throw new Error(`API returned status ${response.status}: ${response.text}`);
+                const errorText = `API returned status ${response.status}: ${response.text}`;
+                this.plugin.logger.log('api', 'system', `API error: ${errorText}`);
+                throw new Error(errorText);
             }
 
             const data = response.json;
             if (data && data.choices && data.choices.length > 0 && data.choices[0].message) {
-                return data.choices[0].message.content;
+                const content = data.choices[0].message.content;
+                this.plugin.logger.log('api', 'assistant', `Received response from ${provider}`, { content });
+                return content;
             } else {
                 throw new Error('Unexpected API response format');
             }
         } catch (error) {
             console.error('Headless LLM request failed:', error);
+            this.plugin.logger.log('api', 'system', `Request failed: ${error instanceof Error ? error.message : String(error)}`);
             throw error;
         }
     }

@@ -17,6 +17,11 @@ export class DeepSeekView extends ItemView {
     inputEl!: HTMLTextAreaElement;
     messageHistory: ChatMessage[] = [];
     lastSelection: string = '';
+    isProcessing: boolean = false;
+    stopRequested: boolean = false;
+    stopBtn!: HTMLButtonElement;
+    toolCallDepth: number = 0;
+    maxToolDepth: number = 10;
 
     constructor(leaf: WorkspaceLeaf, plugin: DeepSeekPlugin) {
         super(leaf);
@@ -60,10 +65,33 @@ export class DeepSeekView extends ItemView {
         container.empty();
         container.addClass('deepseek-chat-container');
 
-        container.createEl('h4', { text: 'AI Chat', cls: 'chat-h4' });
-
         this.chatContainer = container.createDiv({ cls: 'chat-messages' });
         const inputContainer = container.createDiv({ cls: 'chat-input-container' });
+        
+        const actionBtnContainer = inputContainer.createDiv({ cls: 'chat-action-btns' });
+        
+        this.stopBtn = actionBtnContainer.createEl('button', { text: 'Stop', cls: 'chat-stop-btn' }) as HTMLButtonElement;
+        this.stopBtn.disabled = true;
+        this.stopBtn.onclick = () => {
+            this.stopRequested = true;
+            this.stopBtn.disabled = true;
+            this.stopBtn.innerText = 'Stopping...';
+            new Notice('Stopping AI execution...');
+        };
+        
+        const exportBtn = actionBtnContainer.createEl('button', { text: 'Export Logs', cls: 'chat-export-btn' });
+        exportBtn.addEventListener('click', () => {
+            void this.exportLogs().catch(console.error);
+        });
+
+        const clearBtn = actionBtnContainer.createEl('button', { text: 'Clear Chat' });
+        clearBtn.onclick = () => {
+            this.messageHistory = [];
+            this.chatContainer.empty();
+            this.plugin.logger.clear();
+            new Notice('Chat and logs cleared.');
+        };
+
         this.inputEl = inputContainer.createEl('textarea', { cls: 'chat-input' });
         this.inputEl.placeholder = 'Type your message... (Shift+enter for newline, Enter to send)';
         const sendBtn = inputContainer.createEl('button', { text: 'Send' });
@@ -84,13 +112,35 @@ export class DeepSeekView extends ItemView {
     }
 
     async handleSend() {
+        if (this.isProcessing) return;
         const instruction = this.inputEl.value.trim();
         if (!instruction) return;
 
+        this.isProcessing = true;
+        this.stopRequested = false;
+        this.toolCallDepth = 0;
+        this.stopBtn.disabled = false;
+        this.stopBtn.innerText = 'Stop';
+
         await this.appendMessage('user', instruction);
+        this.plugin.logger.log('chat', 'user', instruction);
         this.inputEl.value = '';
 
-        let contextString = '';
+        // Auto-Context Injection: Scan for [[links]] and prepend content
+        let additionalContext = '';
+        const links = instruction.match(/\[\[([^\]]+)\]\]/g);
+        if (links) {
+            additionalContext += "\n\n[CRITICAL CONTEXT: The following notes were mentioned. Use this content directly instead of searching.]\n";
+            for (const link of links) {
+                const path = link.slice(2, -2);
+                const file = await this.resolveFile(path);
+                if (file) {
+                    const content = await this.app.vault.read(file);
+                    additionalContext += `\n--- Content of [[${file.basename}]] ---\n${content}\n`;
+                }
+            }
+        }
+
         const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 
         // Fallback getting active view directly just in case event missed it, but prioritize cache if exists
@@ -121,37 +171,41 @@ export class DeepSeekView extends ItemView {
         }
 
         if (this.lastSelection && activeFile) {
-            contextString = `\n\n[System Info: The user highlighted the following text in the note "${activeFile.name}". Focus your answer specifically around this highlighted text:\n---\n${this.lastSelection}\n---]`;
+            additionalContext += `\n\n[System Info: The user highlighted the following text in the note "${activeFile.name}". Focus your answer specifically around this highlighted text:\n---\n${this.lastSelection}\n---]`;
             // Clear it after using it so it doesn't leak into unrelated future queries
             this.lastSelection = '';
         } else if (activeFile) {
             const content = await this.app.vault.read(activeFile);
-            contextString = `\n\n[System Info: The user is currently viewing the note "${activeFile.name}". Its full content is:\n---\n${content}\n---]`;
+            additionalContext += `\n\n[System Info: The user is currently viewing the note "${activeFile.name}". Its full content is:\n---\n${content}\n---]`;
         }
 
         if (linkedNotesContext) {
-            contextString += `\n\n[System Info: The active note contains links to the following notes. Here is their content for additional context:\n${linkedNotesContext}]`;
+            additionalContext += `\n\n[System Info: The active note contains links to the following notes. Here is their content for additional context:\n${linkedNotesContext}]`;
         }
 
         try {
-            const prompt = instruction + contextString;
+            const finalPrompt = instruction + additionalContext;
 
             const messages: ChatMessage[] = [
-                { role: 'system', content: 'You are a helpful AI assistant integrated into Obsidian. You can converse naturally with the user. If they provide note context, use it to answer their questions or help them brainstorm.' }
+                { role: 'system', content: 'You are a helpful AI assistant integrated into Obsidian. You can converse naturally with the user. If they provide note context in [CRITICAL CONTEXT] blocks, ALWAYS check that context first before using any search or read tools to save time and tokens.' }
             ];
 
             const recentHistory = this.messageHistory.slice(-10);
             recentHistory.forEach(msg => messages.push(msg));
 
             // We only send the new prompt with context this time
-            messages.push({ role: 'user', content: prompt });
+            messages.push({ role: 'user', content: finalPrompt });
 
-            await this.processConversationStream(messages, prompt);
+            await this.processConversationStream(messages, finalPrompt);
         } catch (error) {
             console.error('Deepseek error:', error);
             const errorMsg = error instanceof Error ? error.message : String(error);
             new Notice('API error: ' + errorMsg);
             await this.appendMessage('system', 'Error: ' + errorMsg);
+        } finally {
+            this.isProcessing = false;
+            this.stopBtn.disabled = true;
+            this.stopBtn.innerText = 'Stop';
         }
     }
 
@@ -204,6 +258,9 @@ export class DeepSeekView extends ItemView {
     async appendMessage(role: 'user' | 'assistant' | 'system' | 'tool', text: string) {
         if (role !== 'system' && role !== 'tool') {
             this.messageHistory.push({ role, content: text });
+            if (role === 'assistant') {
+                this.plugin.logger.log('chat', 'assistant', text);
+            }
         }
 
         const msgDiv = this.chatContainer.createDiv({ cls: `chat-msg role-${role}` });
@@ -245,29 +302,82 @@ export class DeepSeekView extends ItemView {
         this.chatContainer.scrollTo(0, this.chatContainer.scrollHeight);
     }
 
+    async executeReadNote(path: string): Promise<string> {
+        const file = await this.resolveFile(path);
+        if (!file) return `Error: Note "${path}" not found. Try searching for it first.`;
+        const content = await this.app.vault.read(file);
+        return `Full content of [[${file.basename}]] (Path: ${file.path}):\n\n${content}`;
+    }
+
+    async resolveFile(pathStr: string): Promise<TFile | null> {
+        // 1. Try exact path first
+        let file = this.app.vault.getAbstractFileByPath(pathStr);
+        if (file instanceof TFile) return file;
+
+        // 2. Try adding .md if missing
+        if (!pathStr.endsWith('.md')) {
+            file = this.app.vault.getAbstractFileByPath(pathStr + '.md');
+            if (file instanceof TFile) return file;
+        }
+
+        // 3. Try to find by basename globally (most common failure case)
+        const basename = pathStr.split('/').pop()?.replace('.md', '') || pathStr;
+        const allFiles = this.app.vault.getMarkdownFiles();
+        const found = allFiles.find(f => f.basename.toLowerCase() === basename.toLowerCase());
+        return found || null;
+    }
+
     async executeSearchVault(query: string): Promise<string> {
         const files = this.app.vault.getMarkdownFiles();
-        const results = [];
+        const results: string[] = [];
         const lowerQuery = query.toLowerCase();
+        
+        const logDir = (this.plugin.settings.logDirectory || 'DeepSeek-Logs').toLowerCase();
+        const skillsDir = (this.plugin.settings.skillsDirectory || 'DeepSeek-Skills').toLowerCase();
 
-        // Sort files by last modified to get most recent relevant stuff
-        files.sort((a, b) => b.stat.mtime - a.stat.mtime);
+        // 1. Filter out logs and skills to prevent pollution - more aggressive match
+        let filteredFiles = files.filter(file => {
+            const path = file.path.toLowerCase();
+            if (path.includes(logDir)) return false;
+            if (path.includes(skillsDir)) return false;
+            return true;
+        });
 
-        for (const file of files) {
+        // 2. Prioritize exact basename matches (No longer just headers, content will be added below)
+        const exactMatches = filteredFiles.filter(f => f.basename.toLowerCase() === lowerQuery);
+        
+        // 3. Sort by last modified for the rest
+        filteredFiles.sort((a, b) => b.stat.mtime - a.stat.mtime);
+
+        // Put exact matches first in the search process
+        const sortedFiles = [...exactMatches, ...filteredFiles.filter(f => !exactMatches.includes(f))];
+
+        for (const file of sortedFiles) {
             const content = await this.app.vault.cachedRead(file);
-            if (content.toLowerCase().includes(lowerQuery) || file.basename.toLowerCase().includes(lowerQuery)) {
-                const matchIndex = content.toLowerCase().indexOf(lowerQuery);
-                const start = Math.max(0, matchIndex - 100);
-                const end = Math.min(content.length, matchIndex + 300);
-                results.push(`--- File: [[${file.basename}]] ---\n...${content.substring(start, end)}\n`);
-                if (results.length >= 5) break; // Limit to 5 results to avoid token blowup
+            const contentLower = content.toLowerCase();
+            const nameLower = file.basename.toLowerCase();
+            const pathLower = file.path.toLowerCase();
+            
+            if (contentLower.includes(lowerQuery) || nameLower.includes(lowerQuery) || pathLower.includes(lowerQuery)) {
+                const isExactMatch = nameLower === lowerQuery;
+                const matchIndex = contentLower.includes(lowerQuery) ? contentLower.indexOf(lowerQuery) : 0;
+                const start = Math.max(0, matchIndex - 60);
+                const end = Math.min(content.length, matchIndex + 140);
+                
+                if (isExactMatch) {
+                    // Return LARGER snippet or full content for exact matches to save a 'read_note' turn
+                    const fullOrLarge = content.length < 3000 ? content : content.substring(0, 3000) + '... (truncated, use read_note for full)';
+                    results.push(`--- EXACT MATCH: [[${file.basename}]] (Path: ${file.path}) ---\nFull/Large snippet content:\n${fullOrLarge}\n`);
+                } else {
+                    results.push(`--- File: [[${file.basename}]] (Path: ${file.path}) ---\n...${content.substring(start, end)}\n`);
+                }
+                
+                if (results.length >= 5) break; 
             }
         }
 
-        if (results.length === 0) {
-            return `No files found matching "${query}".`;
-        }
-        return `Found ${results.length} files matching "${query}":\n\n` + results.join('\n\n');
+        if (results.length === 0) return `No files found matching "${query}".`;
+        return `Search results for "${query}" (Excluding logs/skills):\n\n` + results.join('\n');
     }
 
     async executeUpdateMetadata(properties: Record<string, string | number | boolean | string[]>): Promise<string> {
@@ -309,15 +419,13 @@ export class DeepSeekView extends ItemView {
     async executeAppendToNote(path: string, content: string): Promise<string> {
         try {
             if (!path.endsWith('.md')) path += '.md';
-            const normalizedPath = path.replace(/^\//, '');
-            const file = this.app.vault.getAbstractFileByPath(normalizedPath);
-
-            if (!file || !(file instanceof TFile)) {
-                return `Error: Markdown file not found at path ${normalizedPath}`;
+            const file = await this.resolveFile(path);
+            if (!file) {
+                return `Error: Markdown file not found for "${path}". Try searching for it first if you're unsure of the path.`;
             }
 
             await this.app.vault.append(file, '\n' + content);
-            return `Successfully appended content to ${normalizedPath}`;
+            return `Successfully appended content to ${file.path}`;
         } catch (e) {
             return `Failed to append to note: ${e instanceof Error ? e.message : String(e)}`;
         }
@@ -370,6 +478,16 @@ export class DeepSeekView extends ItemView {
     }
 
     async processConversationStream(messages: ChatMessage[], originalUserPrompt: string) {
+        if (this.stopRequested) {
+            await this.appendMessage('system', 'Execution stopped by user.');
+            return;
+        }
+
+        if (this.toolCallDepth >= this.maxToolDepth) {
+            await this.appendMessage('system', 'Error: Maximum tool call depth reached. Stopping to prevent infinite loop.');
+            return;
+        }
+
         const { provider, apiKeys, apiUrl, model } = this.plugin.settings;
         const apiKey = apiKeys[provider];
 
@@ -378,6 +496,20 @@ export class DeepSeekView extends ItemView {
         }
 
         const tools = [
+            {
+                type: "function",
+                function: {
+                    name: "read_note",
+                    description: "Reads the full content of a specific markdown note. Use this when you have a file path and need to summarize or fully understand its content.",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            path: { type: "string", description: "The path or name of the note to read (e.g. 'Daily/2026-03-16.md' or 'Note Name')" }
+                        },
+                        required: ["path"]
+                    }
+                }
+            },
             {
                 type: "function",
                 function: {
@@ -458,7 +590,6 @@ export class DeepSeekView extends ItemView {
 
         // Prepare UI for streaming response
         const msgDiv = this.chatContainer.createDiv({ cls: `chat-msg role-assistant` }); msgDiv.addClass('chat-msg-assistant');
-
         const assistantName = this.getAssistantName();
         const headerDiv = msgDiv.createDiv({ cls: 'msg-header' });
         const senderLabel = headerDiv.createEl('strong', {
@@ -472,20 +603,22 @@ export class DeepSeekView extends ItemView {
         });
 
         const contentDiv = msgDiv.createDiv({ cls: 'msg-content' });
-        let fullResponse = '';
-        let toolCall: { id: string, name: string, arguments: string } | null = null;
-
+        
         try {
-
             const requestBody = {
                 model: model,
                 messages: messages,
-                stream: false, // Streaming removed to satisfy Obsidian review bot (fetch -> requestUrl)
+                stream: false,
                 tools: tools
             };
 
+            let finalUrl = apiUrl || "https://api.deepseek.com/v1/chat/completions";
+            if (apiUrl && !apiUrl.endsWith('/chat/completions')) {
+                finalUrl = apiUrl.endsWith('/') ? `${apiUrl}chat/completions` : `${apiUrl}/chat/completions`;
+            }
+
             const response = await requestUrl({
-                url: `${apiUrl}/chat/completions`,
+                url: finalUrl,
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -494,84 +627,64 @@ export class DeepSeekView extends ItemView {
                 body: JSON.stringify(requestBody)
             });
 
-            if (response.status !== 200) {
-                throw new Error(`API returned status ${response.status}: ${response.text}`);
+            if (this.stopRequested) {
+                await this.appendMessage('system', 'Execution stopped by user.');
+                return;
             }
 
-            const data: { choices: Array<{ message: ChatMessage }> } = response.json;
-            if (data.choices && data.choices[0].message) {
-                const message = data.choices[0].message;
-                if (message.content) {
-                    fullResponse = message.content;
-                    contentDiv.innerText = fullResponse;
-                    this.chatContainer.scrollTo(0, this.chatContainer.scrollHeight);
-                }
+            const data = response.json;
+            const resMsg = data.choices[0].message;
+            const fullResponse = resMsg.content || '';
+            const toolCalls = resMsg.tool_calls || [];
 
-                if (message.tool_calls) {
-                    for (const tc of message.tool_calls) {
-                        if (!toolCall) {
-                            toolCall = { id: tc.id, name: tc.function?.name || '', arguments: '' };
-                        }
-                        if (tc.function?.arguments) {
-                            toolCall.arguments += tc.function.arguments;
-                        }
+            if (toolCalls.length > 0) {
+                senderLabel.innerText = `${assistantName} (running ${toolCalls.length} tools...)`;
+                
+                // Track the assistant message containing tool calls
+                messages.push(resMsg);
+
+                // Execute all tool calls in parallel
+                const toolPromises = toolCalls.map(async (tc: any) => {
+                    const name = tc.function.name;
+                    const args = JSON.parse(tc.function.arguments || '{}');
+                    let result = '';
+                    
+                    try {
+                        if (name === 'read_note') result = await this.executeReadNote(args.path);
+                        else if (name === 'search_vault') result = await this.executeSearchVault(args.query);
+                        else if (name === 'update_metadata') result = await this.executeUpdateMetadata(args.properties);
+                        else if (name === 'create_note') result = await this.executeCreateNote(args.path, args.content);
+                        else if (name === 'append_to_note') result = await this.executeAppendToNote(args.path, args.content);
+                        else if (name === 'modify_files_in_directory') result = await this.executeModifyDirectory(args.directory_path, args.instruction);
+                        else result = `Error: Unknown tool ${name}`;
+                        
+                        this.plugin.logger.log('tool', 'tool', `Executed ${name}`, { arguments: args, result });
+                    } catch (e) {
+                        result = `Error executing tool: ${e instanceof Error ? e.message : String(e)}`;
+                        this.plugin.logger.log('tool', 'tool', `Failed to execute ${name}`, { arguments: tc.function.arguments, error: result });
                     }
-                }
-            }
-            if (toolCall) {
-                senderLabel.innerText = `${assistantName} (running ${toolCall.name}...)`;
-                let toolResult = '';
+                    return { id: tc.id, name, result };
+                });
 
-                try {
-                    const args = JSON.parse(toolCall.arguments || '{}');
-                    if (toolCall.name === 'search_vault') {
-                        toolResult = await this.executeSearchVault(args.query);
-                    } else if (toolCall.name === 'update_metadata') {
-                        toolResult = await this.executeUpdateMetadata(args.properties);
-                    } else if (toolCall.name === 'create_note') {
-                        toolResult = await this.executeCreateNote(args.path, args.content);
-                    } else if (toolCall.name === 'append_to_note') {
-                        toolResult = await this.executeAppendToNote(args.path, args.content);
-                    } else if (toolCall.name === 'modify_files_in_directory') {
-                        toolResult = await this.executeModifyDirectory(args.directory_path, args.instruction);
-                    } else {
-                        toolResult = `Error: Unknown tool ${toolCall.name}`;
-                    }
-                } catch (e) {
-                    toolResult = `Error executing tool: ${e instanceof Error ? e.message : String(e)}`;
+                const results = await Promise.all(toolPromises);
+
+                // Add all results back to messages
+                for (const res of results) {
+                    messages.push({
+                        role: 'tool',
+                        tool_call_id: res.id,
+                        name: res.name,
+                        content: res.result
+                    });
                 }
 
-                // Optional: show user what tool ran
+                // UI feedback
                 msgDiv.addClass('chat-msg-tool');
-                contentDiv.innerText = `=> Used tool: ${toolCall.name}\n=> Result: ${toolResult.substring(0, 50)}...`;
+                contentDiv.innerText = `=> Used tools: ${results.map(r => r.name).join(', ')}\n=> Last result snippet: ${results[results.length-1].result.substring(0, 100)}...`;
 
-                // Append assistant tool call request
-                messages.push({
-                    role: 'assistant',
-                    content: null,
-                    tool_calls: [
-                        {
-                            id: toolCall.id,
-                            type: 'function',
-                            function: {
-                                name: toolCall.name,
-                                arguments: toolCall.arguments
-                            }
-                        }
-                    ]
-                });
-
-                // Append tool result
-                messages.push({
-                    role: 'tool',
-                    tool_call_id: toolCall.id,
-                    name: toolCall.name,
-                    content: toolResult
-                });
-
-                // Recurse to let model generate final text based on tool result
+                // Recurse
+                this.toolCallDepth++;
                 await this.processConversationStream(messages, originalUserPrompt);
-                msgDiv.remove(); // Clean up intermediate tool message if we wanted, or keep it. Let's remove it to keep UI clean.
                 return;
             }
 
@@ -602,6 +715,37 @@ export class DeepSeekView extends ItemView {
         } catch (e) {
             msgDiv.remove();
             throw e;
+        }
+    }
+
+    async exportLogs() {
+        const md = this.plugin.logger.getMarkdown();
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const fileName = `Execution-Log-${timestamp}.md`;
+        const logDir = this.plugin.settings.logDirectory || 'DeepSeek-Logs';
+        
+        // Ensure log directory exists
+        const folder = this.app.vault.getAbstractFileByPath(logDir);
+        if (!folder) {
+            await this.app.vault.createFolder(logDir);
+        } else if (!(folder instanceof TFolder)) {
+            new Notice(`Error: ${logDir} already exists as a file. Please change the log directory in settings.`);
+            return;
+        }
+
+        const path = `${logDir}/${fileName}`;
+
+        try {
+            await this.app.vault.create(path, md);
+            new Notice(`Logs exported to ${path}`);
+            
+            const file = this.app.vault.getAbstractFileByPath(path);
+            if (file instanceof TFile) {
+                await this.app.workspace.getLeaf().openFile(file);
+            }
+        } catch (e) {
+            console.error('Failed to export logs:', e);
+            new Notice('Failed to export logs: ' + (e instanceof Error ? e.message : String(e)));
         }
     }
 }

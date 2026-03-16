@@ -16,6 +16,7 @@ export class SkillExecutor {
     }
 
     async execute(skill: Skill) {
+        this.plugin.logger.log('pipeline', 'system', `Starting execution of skill: ${skill.name}`, { skill });
         const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
         const activeFile = this.app.workspace.getActiveFile();
         
@@ -54,6 +55,20 @@ export class SkillExecutor {
 
     private renderTemplate(template: string, context: Record<string, string>): string {
         let rendered = template;
+        
+        // 1. Render {{date:FORMAT}} variables
+        rendered = rendered.replace(/\{\{date:([^}]+)\}\}/g, (_, fmt) => {
+            const now = new Date();
+            return fmt
+                .replace('YYYY', now.getFullYear().toString())
+                .replace('MM', String(now.getMonth() + 1).padStart(2, '0'))
+                .replace('DD', String(now.getDate()).padStart(2, '0'))
+                .replace('HH', String(now.getHours()).padStart(2, '0'))
+                .replace('mm', String(now.getMinutes()).padStart(2, '0'))
+                .replace('ss', String(now.getSeconds()).padStart(2, '0'));
+        });
+        
+        // 2. Render {{key}} context variables
         for (const [key, value] of Object.entries(context)) {
             const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
             rendered = rendered.replace(regex, value);
@@ -68,10 +83,17 @@ export class SkillExecutor {
         new Notice(`Starting pipeline: ${skill.name} (${totalSteps} steps)`);
 
         for (let i = 0; i < totalSteps; i++) {
-            const step = skill.steps![i];
-            new Notice(`Executing Step ${i + 1}/${totalSteps}: ${step.id}`);
+            // Check for stop request
+            const view = this.app.workspace.getLeavesOfType(DEEPSEEK_VIEW_TYPE)[0]?.view as DeepSeekView;
+            if (view && view.stopRequested) {
+                new Notice("Pipeline stopped by user.");
+                this.plugin.logger.log('pipeline', 'system', 'Pipeline aborted by stop request.');
+                return;
+            }
 
+            const step = skill.steps![i];
             const renderedPrompt = this.renderTemplate(step.prompt, pipelineContext);
+            this.plugin.logger.log('pipeline', 'system', `Executing step: ${step.id}`, { stepId: step.id, action: step.action, prompt: renderedPrompt });
 
             let stepResult = '';
             if (step.action === 'process') {
@@ -114,6 +136,7 @@ export class SkillExecutor {
 
             // Store result for future steps
             pipelineContext[step.id] = stepResult;
+            this.plugin.logger.log('pipeline', 'system', `Step ${step.id} completed`, { result: stepResult });
         }
 
         new Notice(`Pipeline "${skill.name}" completed.`);

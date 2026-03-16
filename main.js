@@ -43,6 +43,11 @@ var DeepSeekView = class extends import_obsidian.ItemView {
     __publicField(this, "inputEl");
     __publicField(this, "messageHistory", []);
     __publicField(this, "lastSelection", "");
+    __publicField(this, "isProcessing", false);
+    __publicField(this, "stopRequested", false);
+    __publicField(this, "stopBtn");
+    __publicField(this, "toolCallDepth", 0);
+    __publicField(this, "maxToolDepth", 10);
     this.plugin = plugin;
   }
   getViewType() {
@@ -79,9 +84,28 @@ var DeepSeekView = class extends import_obsidian.ItemView {
     const container = this.containerEl.children[1];
     container.empty();
     container.addClass("deepseek-chat-container");
-    container.createEl("h4", { text: "AI Chat", cls: "chat-h4" });
     this.chatContainer = container.createDiv({ cls: "chat-messages" });
     const inputContainer = container.createDiv({ cls: "chat-input-container" });
+    const actionBtnContainer = inputContainer.createDiv({ cls: "chat-action-btns" });
+    this.stopBtn = actionBtnContainer.createEl("button", { text: "Stop", cls: "chat-stop-btn" });
+    this.stopBtn.disabled = true;
+    this.stopBtn.onclick = () => {
+      this.stopRequested = true;
+      this.stopBtn.disabled = true;
+      this.stopBtn.innerText = "Stopping...";
+      new import_obsidian.Notice("Stopping AI execution...");
+    };
+    const exportBtn = actionBtnContainer.createEl("button", { text: "Export Logs", cls: "chat-export-btn" });
+    exportBtn.addEventListener("click", () => {
+      void this.exportLogs().catch(console.error);
+    });
+    const clearBtn = actionBtnContainer.createEl("button", { text: "Clear Chat" });
+    clearBtn.onclick = () => {
+      this.messageHistory = [];
+      this.chatContainer.empty();
+      this.plugin.logger.clear();
+      new import_obsidian.Notice("Chat and logs cleared.");
+    };
     this.inputEl = inputContainer.createEl("textarea", { cls: "chat-input" });
     this.inputEl.placeholder = "Type your message... (Shift+enter for newline, Enter to send)";
     const sendBtn = inputContainer.createEl("button", { text: "Send" });
@@ -98,11 +122,33 @@ var DeepSeekView = class extends import_obsidian.ItemView {
     this.appendMessage("assistant", "Hello! Ask me anything. If you highlight text in your note, I will remember it and focus on that. I can also search your entire vault or update your note metadata if you ask me to!").catch(console.error);
   }
   async handleSend() {
+    if (this.isProcessing) return;
     const instruction = this.inputEl.value.trim();
     if (!instruction) return;
+    this.isProcessing = true;
+    this.stopRequested = false;
+    this.toolCallDepth = 0;
+    this.stopBtn.disabled = false;
+    this.stopBtn.innerText = "Stop";
     await this.appendMessage("user", instruction);
+    this.plugin.logger.log("chat", "user", instruction);
     this.inputEl.value = "";
-    let contextString = "";
+    let additionalContext = "";
+    const links = instruction.match(/\[\[([^\]]+)\]\]/g);
+    if (links) {
+      additionalContext += "\n\n[CRITICAL CONTEXT: The following notes were mentioned. Use this content directly instead of searching.]\n";
+      for (const link of links) {
+        const path = link.slice(2, -2);
+        const file = await this.resolveFile(path);
+        if (file) {
+          const content = await this.app.vault.read(file);
+          additionalContext += `
+--- Content of [[${file.basename}]] ---
+${content}
+`;
+        }
+      }
+    }
     const activeView = this.app.workspace.getActiveViewOfType(import_obsidian.MarkdownView);
     if (activeView) {
       const currentSelection = activeView.editor.getSelection();
@@ -130,7 +176,7 @@ ${truncatedContent}
       }
     }
     if (this.lastSelection && activeFile) {
-      contextString = `
+      additionalContext += `
 
 [System Info: The user highlighted the following text in the note "${activeFile.name}". Focus your answer specifically around this highlighted text:
 ---
@@ -139,7 +185,7 @@ ${this.lastSelection}
       this.lastSelection = "";
     } else if (activeFile) {
       const content = await this.app.vault.read(activeFile);
-      contextString = `
+      additionalContext += `
 
 [System Info: The user is currently viewing the note "${activeFile.name}". Its full content is:
 ---
@@ -147,25 +193,29 @@ ${content}
 ---]`;
     }
     if (linkedNotesContext) {
-      contextString += `
+      additionalContext += `
 
 [System Info: The active note contains links to the following notes. Here is their content for additional context:
 ${linkedNotesContext}]`;
     }
     try {
-      const prompt = instruction + contextString;
+      const finalPrompt = instruction + additionalContext;
       const messages = [
-        { role: "system", content: "You are a helpful AI assistant integrated into Obsidian. You can converse naturally with the user. If they provide note context, use it to answer their questions or help them brainstorm." }
+        { role: "system", content: "You are a helpful AI assistant integrated into Obsidian. You can converse naturally with the user. If they provide note context in [CRITICAL CONTEXT] blocks, ALWAYS check that context first before using any search or read tools to save time and tokens." }
       ];
       const recentHistory = this.messageHistory.slice(-10);
       recentHistory.forEach((msg) => messages.push(msg));
-      messages.push({ role: "user", content: prompt });
-      await this.processConversationStream(messages, prompt);
+      messages.push({ role: "user", content: finalPrompt });
+      await this.processConversationStream(messages, finalPrompt);
     } catch (error) {
       console.error("Deepseek error:", error);
       const errorMsg = error instanceof Error ? error.message : String(error);
       new import_obsidian.Notice("API error: " + errorMsg);
       await this.appendMessage("system", "Error: " + errorMsg);
+    } finally {
+      this.isProcessing = false;
+      this.stopBtn.disabled = true;
+      this.stopBtn.innerText = "Stop";
     }
   }
   /**
@@ -207,6 +257,9 @@ ${linkedNotesContext}]`;
   async appendMessage(role, text) {
     if (role !== "system" && role !== "tool") {
       this.messageHistory.push({ role, content: text });
+      if (role === "assistant") {
+        this.plugin.logger.log("chat", "assistant", text);
+      }
     }
     const msgDiv = this.chatContainer.createDiv({ cls: `chat-msg role-${role}` });
     const assistantName = this.getAssistantName();
@@ -242,29 +295,70 @@ ${linkedNotesContext}]`;
     }
     this.chatContainer.scrollTo(0, this.chatContainer.scrollHeight);
   }
+  async executeReadNote(path) {
+    const file = await this.resolveFile(path);
+    if (!file) return `Error: Note "${path}" not found. Try searching for it first.`;
+    const content = await this.app.vault.read(file);
+    return `Full content of [[${file.basename}]] (Path: ${file.path}):
+
+${content}`;
+  }
+  async resolveFile(pathStr) {
+    var _a;
+    let file = this.app.vault.getAbstractFileByPath(pathStr);
+    if (file instanceof import_obsidian.TFile) return file;
+    if (!pathStr.endsWith(".md")) {
+      file = this.app.vault.getAbstractFileByPath(pathStr + ".md");
+      if (file instanceof import_obsidian.TFile) return file;
+    }
+    const basename = ((_a = pathStr.split("/").pop()) == null ? void 0 : _a.replace(".md", "")) || pathStr;
+    const allFiles = this.app.vault.getMarkdownFiles();
+    const found = allFiles.find((f) => f.basename.toLowerCase() === basename.toLowerCase());
+    return found || null;
+  }
   async executeSearchVault(query) {
     const files = this.app.vault.getMarkdownFiles();
     const results = [];
     const lowerQuery = query.toLowerCase();
-    files.sort((a, b) => b.stat.mtime - a.stat.mtime);
-    for (const file of files) {
+    const logDir = (this.plugin.settings.logDirectory || "DeepSeek-Logs").toLowerCase();
+    const skillsDir = (this.plugin.settings.skillsDirectory || "DeepSeek-Skills").toLowerCase();
+    let filteredFiles = files.filter((file) => {
+      const path = file.path.toLowerCase();
+      if (path.includes(logDir)) return false;
+      if (path.includes(skillsDir)) return false;
+      return true;
+    });
+    const exactMatches = filteredFiles.filter((f) => f.basename.toLowerCase() === lowerQuery);
+    filteredFiles.sort((a, b) => b.stat.mtime - a.stat.mtime);
+    const sortedFiles = [...exactMatches, ...filteredFiles.filter((f) => !exactMatches.includes(f))];
+    for (const file of sortedFiles) {
       const content = await this.app.vault.cachedRead(file);
-      if (content.toLowerCase().includes(lowerQuery) || file.basename.toLowerCase().includes(lowerQuery)) {
-        const matchIndex = content.toLowerCase().indexOf(lowerQuery);
-        const start = Math.max(0, matchIndex - 100);
-        const end = Math.min(content.length, matchIndex + 300);
-        results.push(`--- File: [[${file.basename}]] ---
+      const contentLower = content.toLowerCase();
+      const nameLower = file.basename.toLowerCase();
+      const pathLower = file.path.toLowerCase();
+      if (contentLower.includes(lowerQuery) || nameLower.includes(lowerQuery) || pathLower.includes(lowerQuery)) {
+        const isExactMatch = nameLower === lowerQuery;
+        const matchIndex = contentLower.includes(lowerQuery) ? contentLower.indexOf(lowerQuery) : 0;
+        const start = Math.max(0, matchIndex - 60);
+        const end = Math.min(content.length, matchIndex + 140);
+        if (isExactMatch) {
+          const fullOrLarge = content.length < 3e3 ? content : content.substring(0, 3e3) + "... (truncated, use read_note for full)";
+          results.push(`--- EXACT MATCH: [[${file.basename}]] (Path: ${file.path}) ---
+Full/Large snippet content:
+${fullOrLarge}
+`);
+        } else {
+          results.push(`--- File: [[${file.basename}]] (Path: ${file.path}) ---
 ...${content.substring(start, end)}
 `);
+        }
         if (results.length >= 5) break;
       }
     }
-    if (results.length === 0) {
-      return `No files found matching "${query}".`;
-    }
-    return `Found ${results.length} files matching "${query}":
+    if (results.length === 0) return `No files found matching "${query}".`;
+    return `Search results for "${query}" (Excluding logs/skills):
 
-` + results.join("\n\n");
+` + results.join("\n");
   }
   async executeUpdateMetadata(properties) {
     const activeFile = this.app.workspace.getActiveFile();
@@ -297,13 +391,12 @@ ${linkedNotesContext}]`;
   async executeAppendToNote(path, content) {
     try {
       if (!path.endsWith(".md")) path += ".md";
-      const normalizedPath = path.replace(/^\//, "");
-      const file = this.app.vault.getAbstractFileByPath(normalizedPath);
-      if (!file || !(file instanceof import_obsidian.TFile)) {
-        return `Error: Markdown file not found at path ${normalizedPath}`;
+      const file = await this.resolveFile(path);
+      if (!file) {
+        return `Error: Markdown file not found for "${path}". Try searching for it first if you're unsure of the path.`;
       }
       await this.app.vault.append(file, "\n" + content);
-      return `Successfully appended content to ${normalizedPath}`;
+      return `Successfully appended content to ${file.path}`;
     } catch (e) {
       return `Failed to append to note: ${e instanceof Error ? e.message : String(e)}`;
     }
@@ -338,13 +431,34 @@ To apply the instruction "${instruction}", please call 'update_metadata' or 'app
     }
   }
   async processConversationStream(messages, originalUserPrompt) {
-    var _a, _b;
+    if (this.stopRequested) {
+      await this.appendMessage("system", "Execution stopped by user.");
+      return;
+    }
+    if (this.toolCallDepth >= this.maxToolDepth) {
+      await this.appendMessage("system", "Error: Maximum tool call depth reached. Stopping to prevent infinite loop.");
+      return;
+    }
     const { provider, apiKeys, apiUrl, model } = this.plugin.settings;
     const apiKey = apiKeys[provider];
     if (!apiKey) {
       throw new Error(`API Key not set for provider ${provider}.`);
     }
     const tools = [
+      {
+        type: "function",
+        function: {
+          name: "read_note",
+          description: "Reads the full content of a specific markdown note. Use this when you have a file path and need to summarize or fully understand its content.",
+          parameters: {
+            type: "object",
+            properties: {
+              path: { type: "string", description: "The path or name of the note to read (e.g. 'Daily/2026-03-16.md' or 'Note Name')" }
+            },
+            required: ["path"]
+          }
+        }
+      },
       {
         type: "function",
         function: {
@@ -435,18 +549,19 @@ To apply the instruction "${instruction}", please call 'update_metadata' or 'app
       cls: "clickable-icon chat-copy-btn chat-hidden"
     });
     const contentDiv = msgDiv.createDiv({ cls: "msg-content" });
-    let fullResponse = "";
-    let toolCall = null;
     try {
       const requestBody = {
         model,
         messages,
         stream: false,
-        // Streaming removed to satisfy Obsidian review bot (fetch -> requestUrl)
         tools
       };
+      let finalUrl = apiUrl || "https://api.deepseek.com/v1/chat/completions";
+      if (apiUrl && !apiUrl.endsWith("/chat/completions")) {
+        finalUrl = apiUrl.endsWith("/") ? `${apiUrl}chat/completions` : `${apiUrl}/chat/completions`;
+      }
       const response = await (0, import_obsidian.requestUrl)({
-        url: `${apiUrl}/chat/completions`,
+        url: finalUrl,
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -454,74 +569,50 @@ To apply the instruction "${instruction}", please call 'update_metadata' or 'app
         },
         body: JSON.stringify(requestBody)
       });
-      if (response.status !== 200) {
-        throw new Error(`API returned status ${response.status}: ${response.text}`);
+      if (this.stopRequested) {
+        await this.appendMessage("system", "Execution stopped by user.");
+        return;
       }
       const data = response.json;
-      if (data.choices && data.choices[0].message) {
-        const message = data.choices[0].message;
-        if (message.content) {
-          fullResponse = message.content;
-          contentDiv.innerText = fullResponse;
-          this.chatContainer.scrollTo(0, this.chatContainer.scrollHeight);
-        }
-        if (message.tool_calls) {
-          for (const tc of message.tool_calls) {
-            if (!toolCall) {
-              toolCall = { id: tc.id, name: ((_a = tc.function) == null ? void 0 : _a.name) || "", arguments: "" };
-            }
-            if ((_b = tc.function) == null ? void 0 : _b.arguments) {
-              toolCall.arguments += tc.function.arguments;
-            }
+      const resMsg = data.choices[0].message;
+      const fullResponse = resMsg.content || "";
+      const toolCalls = resMsg.tool_calls || [];
+      if (toolCalls.length > 0) {
+        senderLabel.innerText = `${assistantName} (running ${toolCalls.length} tools...)`;
+        messages.push(resMsg);
+        const toolPromises = toolCalls.map(async (tc) => {
+          const name = tc.function.name;
+          const args = JSON.parse(tc.function.arguments || "{}");
+          let result = "";
+          try {
+            if (name === "read_note") result = await this.executeReadNote(args.path);
+            else if (name === "search_vault") result = await this.executeSearchVault(args.query);
+            else if (name === "update_metadata") result = await this.executeUpdateMetadata(args.properties);
+            else if (name === "create_note") result = await this.executeCreateNote(args.path, args.content);
+            else if (name === "append_to_note") result = await this.executeAppendToNote(args.path, args.content);
+            else if (name === "modify_files_in_directory") result = await this.executeModifyDirectory(args.directory_path, args.instruction);
+            else result = `Error: Unknown tool ${name}`;
+            this.plugin.logger.log("tool", "tool", `Executed ${name}`, { arguments: args, result });
+          } catch (e) {
+            result = `Error executing tool: ${e instanceof Error ? e.message : String(e)}`;
+            this.plugin.logger.log("tool", "tool", `Failed to execute ${name}`, { arguments: tc.function.arguments, error: result });
           }
-        }
-      }
-      if (toolCall) {
-        senderLabel.innerText = `${assistantName} (running ${toolCall.name}...)`;
-        let toolResult = "";
-        try {
-          const args = JSON.parse(toolCall.arguments || "{}");
-          if (toolCall.name === "search_vault") {
-            toolResult = await this.executeSearchVault(args.query);
-          } else if (toolCall.name === "update_metadata") {
-            toolResult = await this.executeUpdateMetadata(args.properties);
-          } else if (toolCall.name === "create_note") {
-            toolResult = await this.executeCreateNote(args.path, args.content);
-          } else if (toolCall.name === "append_to_note") {
-            toolResult = await this.executeAppendToNote(args.path, args.content);
-          } else if (toolCall.name === "modify_files_in_directory") {
-            toolResult = await this.executeModifyDirectory(args.directory_path, args.instruction);
-          } else {
-            toolResult = `Error: Unknown tool ${toolCall.name}`;
-          }
-        } catch (e) {
-          toolResult = `Error executing tool: ${e instanceof Error ? e.message : String(e)}`;
+          return { id: tc.id, name, result };
+        });
+        const results = await Promise.all(toolPromises);
+        for (const res of results) {
+          messages.push({
+            role: "tool",
+            tool_call_id: res.id,
+            name: res.name,
+            content: res.result
+          });
         }
         msgDiv.addClass("chat-msg-tool");
-        contentDiv.innerText = `=> Used tool: ${toolCall.name}
-=> Result: ${toolResult.substring(0, 50)}...`;
-        messages.push({
-          role: "assistant",
-          content: null,
-          tool_calls: [
-            {
-              id: toolCall.id,
-              type: "function",
-              function: {
-                name: toolCall.name,
-                arguments: toolCall.arguments
-              }
-            }
-          ]
-        });
-        messages.push({
-          role: "tool",
-          tool_call_id: toolCall.id,
-          name: toolCall.name,
-          content: toolResult
-        });
+        contentDiv.innerText = `=> Used tools: ${results.map((r) => r.name).join(", ")}
+=> Last result snippet: ${results[results.length - 1].result.substring(0, 100)}...`;
+        this.toolCallDepth++;
         await this.processConversationStream(messages, originalUserPrompt);
-        msgDiv.remove();
         return;
       }
       senderLabel.innerText = assistantName;
@@ -549,6 +640,85 @@ To apply the instruction "${instruction}", please call 'update_metadata' or 'app
       throw e;
     }
   }
+  async exportLogs() {
+    const md = this.plugin.logger.getMarkdown();
+    const timestamp = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-");
+    const fileName = `Execution-Log-${timestamp}.md`;
+    const logDir = this.plugin.settings.logDirectory || "DeepSeek-Logs";
+    const folder = this.app.vault.getAbstractFileByPath(logDir);
+    if (!folder) {
+      await this.app.vault.createFolder(logDir);
+    } else if (!(folder instanceof import_obsidian.TFolder)) {
+      new import_obsidian.Notice(`Error: ${logDir} already exists as a file. Please change the log directory in settings.`);
+      return;
+    }
+    const path = `${logDir}/${fileName}`;
+    try {
+      await this.app.vault.create(path, md);
+      new import_obsidian.Notice(`Logs exported to ${path}`);
+      const file = this.app.vault.getAbstractFileByPath(path);
+      if (file instanceof import_obsidian.TFile) {
+        await this.app.workspace.getLeaf().openFile(file);
+      }
+    } catch (e) {
+      console.error("Failed to export logs:", e);
+      new import_obsidian.Notice("Failed to export logs: " + (e instanceof Error ? e.message : String(e)));
+    }
+  }
+};
+
+// src/logger.ts
+var ExecutionLogger = class {
+  constructor() {
+    __publicField(this, "logs", []);
+  }
+  log(type, role, content, data) {
+    const entry = {
+      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+      type,
+      role,
+      content,
+      data
+    };
+    this.logs.push(entry);
+    console.log(`[DeepSeek Log] ${role.toUpperCase()}: ${content.substring(0, 100)}${content.length > 100 ? "..." : ""}`);
+  }
+  clear() {
+    this.logs = [];
+  }
+  getLogs() {
+    return [...this.logs];
+  }
+  getMarkdown() {
+    let md = `# DeepSeek Note Helper Execution Logs
+
+`;
+    md += `Generated at: ${(/* @__PURE__ */ new Date()).toLocaleString()}
+
+`;
+    md += `---
+
+`;
+    for (const log of this.logs) {
+      md += `### [${log.timestamp}] ${log.role.toUpperCase()} (${log.type.toUpperCase()})
+`;
+      md += `${log.content}
+
+`;
+      if (log.data) {
+        md += `**Data:**
+\`\`\`json
+${JSON.stringify(log.data, null, 2)}
+\`\`\`
+
+`;
+      }
+      md += `---
+
+`;
+    }
+    return md;
+  }
 };
 
 // src/skillManager.ts
@@ -569,6 +739,7 @@ var LlmService = class {
    * Ideal for pipeline processing where we don't want to pollute the chat UI.
    */
   async ask(prompt) {
+    var _a;
     const { provider, apiKeys, apiUrl, model } = this.plugin.settings;
     const apiKey = apiKeys[provider];
     if (!apiKey) {
@@ -587,23 +758,35 @@ var LlmService = class {
       "Authorization": `Bearer ${apiKey}`
     };
     try {
+      this.plugin.logger.log("api", "system", `Sending request to ${provider}`, { model, messages });
       const response = await (0, import_obsidian2.requestUrl)({
         url: endpoint,
         method: "POST",
         headers,
         body: JSON.stringify(payload)
       });
+      const leaves = this.plugin.app.workspace.getLeavesOfType("deepseek-chat-view");
+      const view = (_a = leaves[0]) == null ? void 0 : _a.view;
+      if (view && view.stopRequested) {
+        this.plugin.logger.log("api", "system", "Request returned but stop was requested. Aborting.");
+        throw new Error("STOPPED_BY_USER");
+      }
       if (response.status !== 200) {
-        throw new Error(`API returned status ${response.status}: ${response.text}`);
+        const errorText = `API returned status ${response.status}: ${response.text}`;
+        this.plugin.logger.log("api", "system", `API error: ${errorText}`);
+        throw new Error(errorText);
       }
       const data = response.json;
       if (data && data.choices && data.choices.length > 0 && data.choices[0].message) {
-        return data.choices[0].message.content;
+        const content = data.choices[0].message.content;
+        this.plugin.logger.log("api", "assistant", `Received response from ${provider}`, { content });
+        return content;
       } else {
         throw new Error("Unexpected API response format");
       }
     } catch (error) {
       console.error("Headless LLM request failed:", error);
+      this.plugin.logger.log("api", "system", `Request failed: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
@@ -620,6 +803,7 @@ var SkillExecutor = class {
     this.llm = new LlmService(plugin);
   }
   async execute(skill) {
+    this.plugin.logger.log("pipeline", "system", `Starting execution of skill: ${skill.name}`, { skill });
     const activeView = this.app.workspace.getActiveViewOfType(import_obsidian3.MarkdownView);
     const activeFile = this.app.workspace.getActiveFile();
     const initialContext = {
@@ -650,6 +834,10 @@ var SkillExecutor = class {
   }
   renderTemplate(template, context) {
     let rendered = template;
+    rendered = rendered.replace(/\{\{date:([^}]+)\}\}/g, (_, fmt) => {
+      const now = /* @__PURE__ */ new Date();
+      return fmt.replace("YYYY", now.getFullYear().toString()).replace("MM", String(now.getMonth() + 1).padStart(2, "0")).replace("DD", String(now.getDate()).padStart(2, "0")).replace("HH", String(now.getHours()).padStart(2, "0")).replace("mm", String(now.getMinutes()).padStart(2, "0")).replace("ss", String(now.getSeconds()).padStart(2, "0"));
+    });
     for (const [key, value] of Object.entries(context)) {
       const regex = new RegExp(`\\{\\{${key}\\}\\}`, "g");
       rendered = rendered.replace(regex, value);
@@ -657,14 +845,20 @@ var SkillExecutor = class {
     return rendered;
   }
   async executePipeline(skill, initialContext, activeView) {
-    var _a, _b;
+    var _a, _b, _c;
     const pipelineContext = { ...initialContext };
     const totalSteps = ((_a = skill.steps) == null ? void 0 : _a.length) || 0;
     new import_obsidian3.Notice(`Starting pipeline: ${skill.name} (${totalSteps} steps)`);
     for (let i = 0; i < totalSteps; i++) {
+      const view = (_b = this.app.workspace.getLeavesOfType(DEEPSEEK_VIEW_TYPE)[0]) == null ? void 0 : _b.view;
+      if (view && view.stopRequested) {
+        new import_obsidian3.Notice("Pipeline stopped by user.");
+        this.plugin.logger.log("pipeline", "system", "Pipeline aborted by stop request.");
+        return;
+      }
       const step = skill.steps[i];
-      new import_obsidian3.Notice(`Executing Step ${i + 1}/${totalSteps}: ${step.id}`);
       const renderedPrompt = this.renderTemplate(step.prompt, pipelineContext);
+      this.plugin.logger.log("pipeline", "system", `Executing step: ${step.id}`, { stepId: step.id, action: step.action, prompt: renderedPrompt });
       let stepResult = "";
       if (step.action === "process") {
         stepResult = await this.llm.ask(renderedPrompt);
@@ -677,9 +871,9 @@ var SkillExecutor = class {
       } else if (step.action === "ask_user") {
         await this.plugin.activateView();
         await new Promise((resolve) => setTimeout(resolve, 100));
-        const view = (_b = this.app.workspace.getLeavesOfType(DEEPSEEK_VIEW_TYPE)[0]) == null ? void 0 : _b.view;
-        if (view) {
-          const approved = await view.requestUserApproval(step.id, renderedPrompt);
+        const view2 = (_c = this.app.workspace.getLeavesOfType(DEEPSEEK_VIEW_TYPE)[0]) == null ? void 0 : _c.view;
+        if (view2) {
+          const approved = await view2.requestUserApproval(step.id, renderedPrompt);
           if (approved === null) {
             new import_obsidian3.Notice("Pipeline canceled.");
             return;
@@ -701,6 +895,7 @@ var SkillExecutor = class {
         console.warn(`Unknown action ${step.action} in step ${step.id}`);
       }
       pipelineContext[step.id] = stepResult;
+      this.plugin.logger.log("pipeline", "system", `Step ${step.id} completed`, { result: stepResult });
     }
     new import_obsidian3.Notice(`Pipeline "${skill.name}" completed.`);
   }
@@ -901,13 +1096,15 @@ var DEFAULT_SETTINGS = {
   },
   apiUrl: "https://api.deepseek.com",
   model: "deepseek-chat",
-  skillsDirectory: "DeepSeek-Skills"
+  skillsDirectory: "DeepSeek-Skills",
+  logDirectory: "DeepSeek-Logs"
 };
 var DeepSeekPlugin = class extends import_obsidian5.Plugin {
   constructor() {
     super(...arguments);
     __publicField(this, "settings", DEFAULT_SETTINGS);
     __publicField(this, "skillManager");
+    __publicField(this, "logger", new ExecutionLogger());
   }
   async onload() {
     await this.loadSettings();
@@ -996,8 +1193,11 @@ var DeepSeekSettingTab = class extends import_obsidian6.PluginSettingTab {
     }));
     new import_obsidian6.Setting(containerEl).setName("Skills directory").setDesc("Folder where your Markdown skills are stored (e.g. DeepSeek-Skills).").addText((text) => text.setValue(this.plugin.settings.skillsDirectory).onChange((value) => {
       this.plugin.settings.skillsDirectory = value;
-      void this.plugin.saveSettings().catch(console.error);
       void this.plugin.skillManager.loadSkills().catch(console.error);
+    }));
+    new import_obsidian6.Setting(containerEl).setName("Log export directory").setDesc("Folder where execution logs will be exported (e.g. DeepSeek-Logs).").addText((text) => text.setValue(this.plugin.settings.logDirectory).onChange(async (value) => {
+      this.plugin.settings.logDirectory = value;
+      await this.plugin.saveSettings();
     }));
   }
 };

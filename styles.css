@@ -8,8 +8,35 @@
     padding: 10px;
 }
 
-.chat-h4 {
-    margin-top: 10px;
+.chat-action-btns {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+    justify-content: flex-start;
+}
+
+.chat-action-btns button {
+    font-size: 0.8em;
+    padding: 4px 8px;
+    height: auto;
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    color: var(--text-muted);
+}
+
+.chat-action-btns button:hover:not(:disabled) {
+    background: var(--background-secondary-alt);
+    color: var(--text-normal);
+    border-color: var(--interactive-accent);
+}
+
+.chat-stop-btn:not(:disabled) {
+    color: var(--text-error) !important;
+}
+
+.chat-export-btn {
+    color: var(--text-accent) !important;
 }
 
 /* Pipeline Approval Card Styles */
