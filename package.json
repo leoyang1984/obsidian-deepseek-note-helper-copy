@@ -7,7 +7,7 @@
   },
   "keywords": [],
   "author": "leoyang1984",
-  "license": "MIT",
+  "license": "SEE LICENSE IN COMMERCIAL_LICENSE.md",
   "description": "",
   "devDependencies": {
     "@tsconfig/svelte": "^5.0.8",

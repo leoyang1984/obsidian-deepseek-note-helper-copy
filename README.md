@@ -66,7 +66,13 @@ The latest version introduces **Light Skills**, a Markdown-based DSL that allows
 58: 
 59: ---
 60: 
-61: ### 📝 Changelog
+### ⚖️ License
+This project is licensed under a **Custom Non-Commercial License**. Commercial use, unauthorized redistribution, and plagiarism for profit are strictly prohibited. See [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md) for full terms.
+
+---
+
+### 📝 Changelog
+
 62: - **v1.5.1 (2026-03-17)**: Maintenance release. Cleaned up repository and optimized Git synchronization rules.
 
 ---
@@ -123,7 +129,13 @@ The latest version introduces **Light Skills**, a Markdown-based DSL that allows
 102: 
 103: ---
 104: 
-105: ### 📝 更新日志
+### ⚖️ 知识产权与授权
+本项目采用**自定义商业禁用协议**。严禁任何形式的商业行为、商业性抄袭或未经授权的分发。详情请参阅 [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md)。
+
+---
+
+### 📝 更新日志
+
 106: - **v1.5.1 (2026-03-17)**：日常维护。清理仓库冗余数据，优化 Git 同步规则。
 
 ---
