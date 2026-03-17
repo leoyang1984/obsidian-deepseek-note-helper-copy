@@ -9,7 +9,7 @@ Wrapping up the **Agentic Pipeline (V3)** phase. The system is functional and do
 - Fixed a bug in `SkillExecutor.ts` where `insert_below` was accidentally removed during refactoring.
 - Created `Skill Architect` meta-skill to lower the barrier for creating new pipelines.
 - Stylized the "Manual Intervention" card in CSS with animations and clear status indicators.
-- Cleaned up legacy Git metadata (`.git` and `.gitignore`) carried over from old repositories.
+- **v1.5.1**: Cleaned up repository, optimized `.gitignore` (specifically ignoring the large `test-vault/` and release folders), and synchronized version numbers across `package.json`, `manifest.json`, and `versions.json`.
 
 ## Contextual Notes
 - Pipeline DSL matches `[STEP: ID]`. ID can be Chinese.
