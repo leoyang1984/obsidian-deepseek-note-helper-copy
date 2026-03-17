@@ -10,6 +10,14 @@ interface DeepSeekSettings {
     model: string;
     skillsDirectory: string;
     logDirectory: string;
+    // Telegram Settings
+    tgBotToken: string;
+    tgChatId: string;
+    tgPollingInterval: number;
+    tgSavePath: string;
+    tgAiProcessing: boolean;
+    tgPromptTemplate: string;
+    tgLastUpdateId: number;
 }
 
 const DEFAULT_SETTINGS: DeepSeekSettings = {
@@ -24,7 +32,14 @@ const DEFAULT_SETTINGS: DeepSeekSettings = {
     apiUrl: 'https://api.deepseek.com',
     model: 'deepseek-chat',
     skillsDirectory: 'DeepSeek-Skills',
-    logDirectory: 'DeepSeek-Logs'
+    logDirectory: 'DeepSeek-Logs',
+    tgBotToken: '',
+    tgChatId: '',
+    tgPollingInterval: 60,
+    tgSavePath: 'Telegram-Notes.md',
+    tgAiProcessing: true,
+    tgPromptTemplate: '你是一个知识库助手。以下是用户在户外通过手机【语音转文字】发来的碎片记录，可能包含同音错别字和中英夹杂错误。请修复错误、去除口语废话，并提炼为结构清晰的 Markdown 格式（可适度加粗或列点）。只返回处理后的内容，不要回复其他废话。原文：\n{{tg_message}}',
+    tgLastUpdateId: 0
 }
 
 import { SkillManager } from './skillManager';
@@ -33,6 +48,7 @@ export default class DeepSeekPlugin extends Plugin {
     settings: DeepSeekSettings = DEFAULT_SETTINGS;
     skillManager!: SkillManager;
     logger: ExecutionLogger = new ExecutionLogger();
+    telegramService!: TelegramService;
 
     async onload() {
         await this.loadSettings();
@@ -53,6 +69,24 @@ export default class DeepSeekPlugin extends Plugin {
         this.app.workspace.onLayoutReady(() => {
             void this.skillManager.loadSkills().catch(console.error);
         });
+
+        // Initialize Telegram Service
+        this.telegramService = new TelegramService(this);
+        
+        // Ensure polling starts on load if configured
+        this.startPolling();
+    }
+
+    startPolling() {
+        if (this.telegramService) {
+            this.telegramService.startPolling();
+        }
+    }
+
+    onunload() {
+        if (this.telegramService) {
+            this.telegramService.stopPolling();
+        }
     }
 
     async activateView() {
@@ -193,5 +227,78 @@ class DeepSeekSettingTab extends PluginSettingTab {
                     this.plugin.settings.logDirectory = value;
                     await this.plugin.saveSettings();
                 }));
+
+        new Setting(containerEl).setName('Telegram Sync Settings').setHeading();
+
+        new Setting(containerEl)
+            .setName('Telegram Bot Token')
+            .setDesc('Token from @BotFather.')
+            .addText(text => text
+                .setPlaceholder('Enter your bot token')
+                .setValue(this.plugin.settings.tgBotToken)
+                .onChange(async (value) => {
+                    this.plugin.settings.tgBotToken = value;
+                    await this.plugin.saveSettings();
+                    this.plugin.startPolling();
+                }));
+
+        new Setting(containerEl)
+            .setName('My Chat ID')
+            .setDesc('Whitelisted Chat ID to receive messages from.')
+            .addText(text => text
+                .setPlaceholder('Enter your Chat ID')
+                .setValue(this.plugin.settings.tgChatId)
+                .onChange(async (value) => {
+                    this.plugin.settings.tgChatId = value;
+                    await this.plugin.saveSettings();
+                    this.plugin.startPolling();
+                }));
+
+        new Setting(containerEl)
+            .setName('Polling Interval (seconds)')
+            .setDesc('How often to check for new messages.')
+            .addText(text => text
+                .setValue(String(this.plugin.settings.tgPollingInterval))
+                .onChange(async (value) => {
+                    const num = parseInt(value);
+                    if (!isNaN(num) && num > 0) {
+                        this.plugin.settings.tgPollingInterval = num;
+                        await this.plugin.saveSettings();
+                        // Restart polling with new interval
+                        this.plugin.startPolling();
+                    }
+                }));
+
+        new Setting(containerEl)
+            .setName('Target Note Path')
+            .setDesc('Path to the Markdown file where notes will be saved (e.g. Inbox/TG-Notes.md).')
+            .addText(text => text
+                .setValue(this.plugin.settings.tgSavePath)
+                .onChange(async (value) => {
+                    this.plugin.settings.tgSavePath = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('Enable DeepSeek Processing')
+            .setDesc('Use AI to format and correct the incoming messages.')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.tgAiProcessing)
+                .onChange(async (value) => {
+                    this.plugin.settings.tgAiProcessing = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('Prompt Template')
+            .setDesc('Template for AI processing. Use {{tg_message}} as placeholder.')
+            .addTextArea(text => text
+                .setValue(this.plugin.settings.tgPromptTemplate)
+                .onChange(async (value) => {
+                    this.plugin.settings.tgPromptTemplate = value;
+                    await this.plugin.saveSettings();
+                }));
     }
 }
+
+import { TelegramService } from './telegramService';

@@ -30,7 +30,7 @@ __export(main_exports, {
   default: () => DeepSeekPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian5 = require("obsidian");
+var import_obsidian6 = require("obsidian");
 
 // src/view.ts
 var import_obsidian = require("obsidian");
@@ -1084,7 +1084,138 @@ var SkillManager = class {
 };
 
 // src/main.ts
-var import_obsidian6 = require("obsidian");
+var import_obsidian7 = require("obsidian");
+
+// src/telegramService.ts
+var import_obsidian5 = require("obsidian");
+var TelegramService = class {
+  constructor(plugin) {
+    __publicField(this, "plugin");
+    __publicField(this, "intervalId", null);
+    __publicField(this, "llmService");
+    __publicField(this, "isFetching", false);
+    this.plugin = plugin;
+    this.llmService = new LlmService(plugin);
+  }
+  startPolling() {
+    this.stopPolling();
+    const interval = this.plugin.settings.tgPollingInterval || 60;
+    this.plugin.logger.log("system", "system", `Starting Telegram polling every ${interval} seconds`);
+    void this.fetchUpdates();
+    this.intervalId = window.setInterval(() => {
+      void this.fetchUpdates();
+    }, interval * 1e3);
+  }
+  stopPolling() {
+    if (this.intervalId) {
+      window.clearInterval(this.intervalId);
+      this.intervalId = null;
+      this.plugin.logger.log("system", "system", "Stopped Telegram polling");
+    }
+  }
+  async fetchUpdates() {
+    if (this.isFetching) return;
+    const { tgBotToken, tgChatId, tgLastUpdateId } = this.plugin.settings;
+    if (!tgBotToken || !tgChatId) return;
+    this.isFetching = true;
+    try {
+      const offset = tgLastUpdateId + 1;
+      const url = `https://api.telegram.org/bot${tgBotToken}/getUpdates?offset=${offset}`;
+      const response = await (0, import_obsidian5.requestUrl)({ url, method: "GET" });
+      if (response.status !== 200) {
+        throw new Error(`Telegram API returned ${response.status}`);
+      }
+      const data = response.json;
+      if (data.ok && data.result && data.result.length > 0) {
+        let maxUpdateId = tgLastUpdateId;
+        for (const update of data.result) {
+          try {
+            await this.processUpdate(update);
+          } catch (e) {
+            console.error("Error processing individual update:", e);
+            this.plugin.logger.log("system", "system", `Error processing update ${update.update_id}: ${e.message || String(e)}`);
+          }
+          if (update.update_id > maxUpdateId) {
+            maxUpdateId = update.update_id;
+          }
+        }
+        if (maxUpdateId > tgLastUpdateId) {
+          this.plugin.settings.tgLastUpdateId = maxUpdateId;
+          await this.plugin.saveSettings();
+          this.plugin.logger.log("system", "system", `Updated Telegram lastUpdateId to ${maxUpdateId} and saved settings.`);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch Telegram updates:", error);
+      this.plugin.logger.log("system", "system", `Telegram fetch failed: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      this.isFetching = false;
+    }
+  }
+  async processUpdate(update) {
+    const { tgChatId } = this.plugin.settings;
+    const message = update.message;
+    if (!message) return;
+    if (String(message.chat.id) !== String(tgChatId)) {
+      this.plugin.logger.log("system", "system", `Ignored message from unauthorized Chat ID: ${message.chat.id}`);
+      return;
+    }
+    const text = message.text;
+    if (text) {
+      await this.handleMessage(text);
+    }
+  }
+  async handleMessage(text) {
+    let finalContent = text;
+    const { tgAiProcessing, tgPromptTemplate, tgSavePath } = this.plugin.settings;
+    if (tgAiProcessing) {
+      try {
+        const prompt = tgPromptTemplate.replace("{{tg_message}}", text);
+        this.plugin.logger.log("system", "system", "Processing Telegram message with AI...");
+        finalContent = await this.llmService.ask(prompt);
+      } catch (error) {
+        console.error("AI Processing failed for TG message:", error);
+        this.plugin.logger.log("system", "system", `AI processing failed, falling back to original. Error: ${error instanceof Error ? error.message : String(error)}`);
+        finalContent = `[AI \u5904\u7406\u5931\u8D25] ${text}`;
+      }
+    }
+    await this.appendToVault(tgSavePath, finalContent);
+  }
+  async appendToVault(path, content) {
+    const { vault } = this.plugin.app;
+    const timestamp = (/* @__PURE__ */ new Date()).toLocaleString();
+    const formattedEntry = `
+
+--- 
+### \u{1F4C5} ${timestamp}
+${content}
+`;
+    try {
+      let file = vault.getAbstractFileByPath(path);
+      if (file instanceof import_obsidian5.TFile) {
+        await vault.process(file, (data) => data + formattedEntry);
+      } else {
+        const pathParts = path.split("/");
+        if (pathParts.length > 1) {
+          const dirPath = pathParts.slice(0, -1).join("/");
+          if (!vault.getAbstractFileByPath(dirPath)) {
+            await vault.createFolder(dirPath);
+          }
+        }
+        await vault.create(path, `# Telegram Notes
+${formattedEntry}`);
+      }
+      new import_obsidian5.Notice(`Telegram message captured to ${path}`);
+      this.plugin.logger.log("system", "system", `Appended Telegram message to ${path}`);
+    } catch (error) {
+      console.error("Failed to append message to vault:", error);
+      this.plugin.logger.log("system", "system", `Failed to append to vault: ${error instanceof Error ? error.message : String(error)}`);
+      new import_obsidian5.Notice(`Failed to save Telegram message: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+};
+
+// src/main.ts
 var DEFAULT_SETTINGS = {
   provider: "deepseek",
   apiKey: "",
@@ -1097,14 +1228,22 @@ var DEFAULT_SETTINGS = {
   apiUrl: "https://api.deepseek.com",
   model: "deepseek-chat",
   skillsDirectory: "DeepSeek-Skills",
-  logDirectory: "DeepSeek-Logs"
+  logDirectory: "DeepSeek-Logs",
+  tgBotToken: "",
+  tgChatId: "",
+  tgPollingInterval: 60,
+  tgSavePath: "Telegram-Notes.md",
+  tgAiProcessing: true,
+  tgPromptTemplate: "\u4F60\u662F\u4E00\u4E2A\u77E5\u8BC6\u5E93\u52A9\u624B\u3002\u4EE5\u4E0B\u662F\u7528\u6237\u5728\u6237\u5916\u901A\u8FC7\u624B\u673A\u3010\u8BED\u97F3\u8F6C\u6587\u5B57\u3011\u53D1\u6765\u7684\u788E\u7247\u8BB0\u5F55\uFF0C\u53EF\u80FD\u5305\u542B\u540C\u97F3\u9519\u522B\u5B57\u548C\u4E2D\u82F1\u5939\u6742\u9519\u8BEF\u3002\u8BF7\u4FEE\u590D\u9519\u8BEF\u3001\u53BB\u9664\u53E3\u8BED\u5E9F\u8BDD\uFF0C\u5E76\u63D0\u70BC\u4E3A\u7ED3\u6784\u6E05\u6670\u7684 Markdown \u683C\u5F0F\uFF08\u53EF\u9002\u5EA6\u52A0\u7C97\u6216\u5217\u70B9\uFF09\u3002\u53EA\u8FD4\u56DE\u5904\u7406\u540E\u7684\u5185\u5BB9\uFF0C\u4E0D\u8981\u56DE\u590D\u5176\u4ED6\u5E9F\u8BDD\u3002\u539F\u6587\uFF1A\n{{tg_message}}",
+  tgLastUpdateId: 0
 };
-var DeepSeekPlugin = class extends import_obsidian5.Plugin {
+var DeepSeekPlugin = class extends import_obsidian6.Plugin {
   constructor() {
     super(...arguments);
     __publicField(this, "settings", DEFAULT_SETTINGS);
     __publicField(this, "skillManager");
     __publicField(this, "logger", new ExecutionLogger());
+    __publicField(this, "telegramService");
   }
   async onload() {
     await this.loadSettings();
@@ -1120,6 +1259,18 @@ var DeepSeekPlugin = class extends import_obsidian5.Plugin {
     this.app.workspace.onLayoutReady(() => {
       void this.skillManager.loadSkills().catch(console.error);
     });
+    this.telegramService = new TelegramService(this);
+    this.startPolling();
+  }
+  startPolling() {
+    if (this.telegramService) {
+      this.telegramService.startPolling();
+    }
+  }
+  onunload() {
+    if (this.telegramService) {
+      this.telegramService.stopPolling();
+    }
   }
   async activateView() {
     const { workspace } = this.app;
@@ -1151,7 +1302,7 @@ var DeepSeekPlugin = class extends import_obsidian5.Plugin {
     await this.saveData(this.settings);
   }
 };
-var DeepSeekSettingTab = class extends import_obsidian6.PluginSettingTab {
+var DeepSeekSettingTab = class extends import_obsidian7.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     __publicField(this, "plugin");
@@ -1160,8 +1311,8 @@ var DeepSeekSettingTab = class extends import_obsidian6.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    new import_obsidian6.Setting(containerEl).setName("Deepseek").setHeading();
-    new import_obsidian6.Setting(containerEl).setName("AI Provider").setDesc("Select the AI service provider.").addDropdown((drop) => drop.addOption("deepseek", "DeepSeek").addOption("kimi", "Kimi (Moonshot)").addOption("openai", "OpenAI").addOption("custom", "Custom").setValue(this.plugin.settings.provider).onChange(async (value) => {
+    new import_obsidian7.Setting(containerEl).setName("Deepseek").setHeading();
+    new import_obsidian7.Setting(containerEl).setName("AI Provider").setDesc("Select the AI service provider.").addDropdown((drop) => drop.addOption("deepseek", "DeepSeek").addOption("kimi", "Kimi (Moonshot)").addOption("openai", "OpenAI").addOption("custom", "Custom").setValue(this.plugin.settings.provider).onChange(async (value) => {
       this.plugin.settings.provider = value;
       if (value === "deepseek") {
         this.plugin.settings.apiUrl = "https://api.deepseek.com";
@@ -1176,27 +1327,58 @@ var DeepSeekSettingTab = class extends import_obsidian6.PluginSettingTab {
       await this.plugin.saveSettings();
       this.display();
     }));
-    new import_obsidian6.Setting(containerEl).setName("API key").setDesc(`Enter your API key for ${this.plugin.settings.provider}.`).addText((text) => text.setValue(this.plugin.settings.apiKeys[this.plugin.settings.provider] || "").onChange((value) => {
+    new import_obsidian7.Setting(containerEl).setName("API key").setDesc(`Enter your API key for ${this.plugin.settings.provider}.`).addText((text) => text.setValue(this.plugin.settings.apiKeys[this.plugin.settings.provider] || "").onChange((value) => {
       this.plugin.settings.apiKeys[this.plugin.settings.provider] = value;
       if (this.plugin.settings.provider === "deepseek") {
         this.plugin.settings.apiKey = value;
       }
       void this.plugin.saveSettings().catch(console.error);
     }));
-    new import_obsidian6.Setting(containerEl).setName("API URL").setDesc("Endpoint for the API. (Will auto-update if Provider is changed)").addText((text) => text.setValue(this.plugin.settings.apiUrl).onChange((value) => {
+    new import_obsidian7.Setting(containerEl).setName("API URL").setDesc("Endpoint for the API. (Will auto-update if Provider is changed)").addText((text) => text.setValue(this.plugin.settings.apiUrl).onChange((value) => {
       this.plugin.settings.apiUrl = value;
       void this.plugin.saveSettings().catch(console.error);
     }));
-    new import_obsidian6.Setting(containerEl).setName("Model").setDesc("Model to use.").addText((text) => text.setValue(this.plugin.settings.model).onChange((value) => {
+    new import_obsidian7.Setting(containerEl).setName("Model").setDesc("Model to use.").addText((text) => text.setValue(this.plugin.settings.model).onChange((value) => {
       this.plugin.settings.model = value;
       void this.plugin.saveSettings().catch(console.error);
     }));
-    new import_obsidian6.Setting(containerEl).setName("Skills directory").setDesc("Folder where your Markdown skills are stored (e.g. DeepSeek-Skills).").addText((text) => text.setValue(this.plugin.settings.skillsDirectory).onChange((value) => {
+    new import_obsidian7.Setting(containerEl).setName("Skills directory").setDesc("Folder where your Markdown skills are stored (e.g. DeepSeek-Skills).").addText((text) => text.setValue(this.plugin.settings.skillsDirectory).onChange((value) => {
       this.plugin.settings.skillsDirectory = value;
       void this.plugin.skillManager.loadSkills().catch(console.error);
     }));
-    new import_obsidian6.Setting(containerEl).setName("Log export directory").setDesc("Folder where execution logs will be exported (e.g. DeepSeek-Logs).").addText((text) => text.setValue(this.plugin.settings.logDirectory).onChange(async (value) => {
+    new import_obsidian7.Setting(containerEl).setName("Log export directory").setDesc("Folder where execution logs will be exported (e.g. DeepSeek-Logs).").addText((text) => text.setValue(this.plugin.settings.logDirectory).onChange(async (value) => {
       this.plugin.settings.logDirectory = value;
+      await this.plugin.saveSettings();
+    }));
+    new import_obsidian7.Setting(containerEl).setName("Telegram Sync Settings").setHeading();
+    new import_obsidian7.Setting(containerEl).setName("Telegram Bot Token").setDesc("Token from @BotFather.").addText((text) => text.setPlaceholder("Enter your bot token").setValue(this.plugin.settings.tgBotToken).onChange(async (value) => {
+      this.plugin.settings.tgBotToken = value;
+      await this.plugin.saveSettings();
+      this.plugin.startPolling();
+    }));
+    new import_obsidian7.Setting(containerEl).setName("My Chat ID").setDesc("Whitelisted Chat ID to receive messages from.").addText((text) => text.setPlaceholder("Enter your Chat ID").setValue(this.plugin.settings.tgChatId).onChange(async (value) => {
+      this.plugin.settings.tgChatId = value;
+      await this.plugin.saveSettings();
+      this.plugin.startPolling();
+    }));
+    new import_obsidian7.Setting(containerEl).setName("Polling Interval (seconds)").setDesc("How often to check for new messages.").addText((text) => text.setValue(String(this.plugin.settings.tgPollingInterval)).onChange(async (value) => {
+      const num = parseInt(value);
+      if (!isNaN(num) && num > 0) {
+        this.plugin.settings.tgPollingInterval = num;
+        await this.plugin.saveSettings();
+        this.plugin.startPolling();
+      }
+    }));
+    new import_obsidian7.Setting(containerEl).setName("Target Note Path").setDesc("Path to the Markdown file where notes will be saved (e.g. Inbox/TG-Notes.md).").addText((text) => text.setValue(this.plugin.settings.tgSavePath).onChange(async (value) => {
+      this.plugin.settings.tgSavePath = value;
+      await this.plugin.saveSettings();
+    }));
+    new import_obsidian7.Setting(containerEl).setName("Enable DeepSeek Processing").setDesc("Use AI to format and correct the incoming messages.").addToggle((toggle) => toggle.setValue(this.plugin.settings.tgAiProcessing).onChange(async (value) => {
+      this.plugin.settings.tgAiProcessing = value;
+      await this.plugin.saveSettings();
+    }));
+    new import_obsidian7.Setting(containerEl).setName("Prompt Template").setDesc("Template for AI processing. Use {{tg_message}} as placeholder.").addTextArea((text) => text.setValue(this.plugin.settings.tgPromptTemplate).onChange(async (value) => {
+      this.plugin.settings.tgPromptTemplate = value;
       await this.plugin.saveSettings();
     }));
   }
