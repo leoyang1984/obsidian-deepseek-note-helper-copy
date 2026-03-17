@@ -55,6 +55,11 @@ The latest version introduces **Light Skills**, a Markdown-based DSL that allows
 4. **Documentation**:
     - [Light Skills Guide V3](docs/LIGHT_SKILLS_GUIDE-V3.md) - **Required Reading** for workflow creation.
     - [Architecture Manual](docs/MANUAL_ARCHITECT.md).
+58: 
+59: ---
+60: 
+61: ### 📝 Changelog
+62: - **v1.5.1 (2026-03-17)**: Maintenance release. Cleaned up repository and optimized Git synchronization rules.
 
 ---
 
@@ -99,6 +104,11 @@ The latest version introduces **Light Skills**, a Markdown-based DSL that allows
 4. **必看文档**：
     - [轻技能 V3 指南](docs/LIGHT_SKILLS_GUIDE-V3.md) - 构建自动化流的必读手册。
     - [架构师手册](docs/MANUAL_ARCHITECT.md)。
+102: 
+103: ---
+104: 
+105: ### 📝 更新日志
+106: - **v1.5.1 (2026-03-17)**：日常维护。清理仓库冗余数据，优化 Git 同步规则。
 
 ---
 *与 AI 共建您的数字花园！*
