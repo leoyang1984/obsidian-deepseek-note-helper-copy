@@ -62,6 +62,12 @@ The plugin currently has completed its core context awareness, streaming interac
 - [ ] **External Services Extension**
   Allow API integration to push notes to personal blogs or commit via Git.
 
+## ✅ Phase 7: Mobile Inbox (Telegram Sync - Completed)
+- [x] **Telegram Bot Polling Engine**: Integration with Telegram API for secure message retrieval.
+- [x] **Smart AI Refinement**: Automatic typo correction and Markdown formatting via DeepSeek.
+- [x] **Whitelist Security**: Chat ID filtering to prevent unauthorized access.
+- [x] **Background capture**: Seamlessly append incoming messages to local inbox notes.
+
 ### 🧩 Future Exploration: Phase 5 and Beyond
 
 ---
@@ -120,6 +126,12 @@ The plugin currently has completed its core context awareness, streaming interac
   支持在编辑器内通过 `/deepseek` 快速原地润色提问。
 - [ ] **外部服务扩展**
   允许通过 API 联动将笔记推送到个人博客或通过 Git 提交。
+
+## ✅ 第七阶段：移动端“闪念”收件箱 (Telegram 同步 - 已完成)
+- [x] **Telegram Bot 轮询引擎**：接入 Telegram API 实现安全的消息调取。
+- [x] **DeepSeek 智能润色**：自动修正语音转文字错别字并进行 Markdown 格式化。
+- [x] **白名单安全过滤**：基于 Chat ID 的权限校验，防止非法消息注入。
+- [x] **静默后台捕获**：无感同步至本地 Inbox 笔记中。
 
 ### 🧩 未来探索：第五阶段及以后
 
