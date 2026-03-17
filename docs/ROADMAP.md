@@ -42,7 +42,9 @@ The plugin currently has completed its core context awareness, streaming interac
 - [x] **Fully Automated Note Operations (Function Calling)**
   AI can autonomously execute `create_note` and `append_to_note`.
 - [x] **Vault Bulk Modification Pre-scan**
-  Achieves safe bulk refactoring through directory scanning and streaming loop calls.
+    Achieves safe bulk refactoring through directory scanning and streaming loop calls.
+- [x] **Agentic Pipeline System (V3)**
+    Introduced "Light Skills" DSL, multi-step execution, and human-in-the-loop support.
 
 ---
 
@@ -60,11 +62,7 @@ The plugin currently has completed its core context awareness, streaming interac
 - [ ] **External Services Extension**
   Allow API integration to push notes to personal blogs or commit via Git.
 
-### 🧩 Phase 6: Multi-step Agentic Workflow (Pipeline Skills)
-- [ ] **Pipeline Execution Engine**
-  Break away from single-prompt constraints. Support multi-step execution where `Step 1` output feeds into `Step 2`. Suitable for complex tasks like "raw transcript -> cleaning -> outline -> chunked writing".
-- [ ] **Human-in-the-loop DSL**
-  Introduce a syntax like `[STEP: 1]` and `action: ask_user` in Markdown to pause the AI pipeline, generate interactive UI options in the sidebar, wait for user confirmation/editing, and then resume execution.
+### 🧩 Future Exploration: Phase 5 and Beyond
 
 ---
 *This document is used for long-term thinking and planning. Welcome to iterate based on new pain points in daily use.*
@@ -103,7 +101,9 @@ The plugin currently has completed its core context awareness, streaming interac
 - [x] **全自动笔记操作 (Function Calling)**
   AI 可自主执行 `create_note` 和 `append_to_note`。
 - [x] **全库批量修改预审**
-  通过目录扫描和流式循环调用实现安全的批量重构。
+    通过目录扫描和流式循环调用实现安全的批量重构。
+- [x] **智能管道系统 (V3 / Pipeline)**
+    引入了 "Light Skills" DSL、多步顺序执行以及人机协作（Manual Intervention）系统。
 
 ---
 
@@ -121,11 +121,7 @@ The plugin currently has completed its core context awareness, streaming interac
 - [ ] **外部服务扩展**
   允许通过 API 联动将笔记推送到个人博客或通过 Git 提交。
 
-### 🧩 第六阶段：多步智能体工作流 (Pipeline Skills)
-- [ ] **流水线执行引擎**
-  打破单次 Prompt 问答的局限。支持“清洗 -> 提炼大纲 -> 分块重写”的深加工流水线，上一步结果自动注入为下一步变量（如 `{{1_清洗}}`）。
-- [ ] **人类介入 DSL 语法与中断 UI (Human-in-the-loop)**
-  在 Markdown 技能库中引入 `[STEP: 1]` 分块语法和 `action: ask_user` 指令。流水线执行到关键节点可自动挂起，并在侧边栏弹出确认按钮或输入框，等待用户修改大纲或批准后继续执行。
+### 🧩 未来探索：第五阶段及以后
 
 ---
 *此文档用于长期思考和规划。欢迎在日常使用中根据新痛点进行迭代。*
