@@ -45,13 +45,18 @@ The latest version introduces **Light Skills**, a Markdown-based DSL that allows
 #### 4. 🛠️ Skill Architect (AI Metadata Generator)
 - Use our built-in **Skill Architect** pipeline to help you *generate new skills*. Just describe what you want the AI to do, and it will write the Markdown DSL for you.
 
+#### 5. 📨 Telegram "Inbox" Synchronization
+- **Mobile Capture**: Send text or voice-to-text messages to your dedicated Telegram Bot while on the go.
+- **AI Refinement**: Automatically correct typos, remove filler words, and format into structured Markdown using DeepSeek.
+- **Auto-Sync**: Background polling ensures your "Inbox" in Obsidian is always up-to-date.
+
 ---
 
 ### 🛠️ Installation & User Guide
 
 1. **Manual Install**: Download the latest Release (containing `main.js`, `styles.css`, `manifest.json`).
 2. **Directory**: Place files in `.obsidian/plugins/obsidian-deepseek-note-helper/`.
-3. **Configure**: Enter your **API Key** in settings and choose your provider.
+3. **Configure**: Enter your **API Key** and optional **Telegram Bot Token** in settings.
 4. **Documentation**:
     - [Light Skills Guide V3](docs/LIGHT_SKILLS_GUIDE-V3.md) - **Required Reading** for workflow creation.
     - [User Manual](docs/MANUAL.md) - Comprehensive guide to all features.
@@ -97,13 +102,18 @@ The latest version introduces **Light Skills**, a Markdown-based DSL that allows
 #### 4. 🛠️ 技能架构师 (AI 辅助生成)
 - 内置 **Skill Architect** 管道。只要描述您的需求，AI 就会为您写好用于定义新技能的 Markdown 脚本。
 
+#### 5. 📨 Telegram “闪念”同步
+- **移动端捕获**：在外出时通过 Telegram Bot 发送文字或语音转文字，随时捕捉灵感。
+- **AI 自动润色**：利用 DeepSeek 自动修正口语错别字、去除废话，并转化为整齐的 Markdown。
+- **后台自动同步**：定时轮询确保您的 Obsidian “收件箱”始终保持最新状态。
+
 ---
 
 ### 🛠️ 安装与使用
 
 1. **手动安装**：下载最新的 Release 包（包含 `main.js`、`styles.css` 和 `manifest.json`）。
 2. **存放目录**：放在 `.obsidian/plugins/obsidian-deepseek-note-helper/` 下。
-3. **配置**：在设置中填入 **API Key** 并选择服务商。
+3. **配置**：在设置中填入 **API Key** 以及可选的 **Telegram Bot Token**。
 4. **必看文档**：
     - [轻技能 V3 指南](docs/LIGHT_SKILLS_GUIDE-V3.md) - 构建自动化流的必读手册。
     - [用户官方手册](docs/MANUAL.md) - 全功能的深度使用说明。
