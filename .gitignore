@@ -7,7 +7,7 @@ plugin-release（obsidian-deepseek-note-helper）/
 plugin-release（obsidian-deepseek-note-helper）-V2.zip
 
 # Obsidian local settings (where API Keys are stored)
-test-vault/.obsidian/
+test-vault/
 
 # macOS system files
 .DS_Store
