@@ -54,7 +54,10 @@ The latest version introduces **Light Skills**, a Markdown-based DSL that allows
 3. **Configure**: Enter your **API Key** in settings and choose your provider.
 4. **Documentation**:
     - [Light Skills Guide V3](docs/LIGHT_SKILLS_GUIDE-V3.md) - **Required Reading** for workflow creation.
+    - [User Manual](docs/MANUAL.md) - Comprehensive guide to all features.
     - [Architecture Manual](docs/MANUAL_ARCHITECT.md).
+    - [Development Roadmap](docs/ROADMAP.md).
+    - [Memory Bank](memorybank/index.md) - Project context & state for developers.
 58: 
 59: ---
 60: 
@@ -103,7 +106,10 @@ The latest version introduces **Light Skills**, a Markdown-based DSL that allows
 3. **配置**：在设置中填入 **API Key** 并选择服务商。
 4. **必看文档**：
     - [轻技能 V3 指南](docs/LIGHT_SKILLS_GUIDE-V3.md) - 构建自动化流的必读手册。
+    - [用户官方手册](docs/MANUAL.md) - 全功能的深度使用说明。
     - [架构师手册](docs/MANUAL_ARCHITECT.md)。
+    - [开发路线图](docs/ROADMAP.md)。
+    - [项目记忆库](memorybank/index.md) - 针对开发者和 AI Agent 的技术上下文。
 102: 
 103: ---
 104: 
