@@ -1164,7 +1164,7 @@ var DeepSeekHoverView = class {
     __publicField(this, "contextEl");
     __publicField(this, "copyBtn");
     __publicField(this, "llmService");
-    __publicField(this, "selection");
+    __publicField(this, "selection", "");
     __publicField(this, "abortController", null);
     __publicField(this, "isVisible", false);
     this.app = app;
@@ -1174,27 +1174,33 @@ var DeepSeekHoverView = class {
     this.containerEl.addClass("deepseek-hover-container");
     this.containerEl.style.display = "none";
     document.body.appendChild(this.containerEl);
-    const header = this.containerEl.createDiv({ cls: "deepseek-hover-header" });
-    header.createSpan({ text: "DeepSeek AI Chat", cls: "deepseek-hover-title" });
-    const closeBtn = header.createEl("button", { text: "\xD7", cls: "deepseek-hover-close" });
-    closeBtn.onclick = () => this.hide();
-    this.setupDragging(header);
+    const dragHandle = this.containerEl.createDiv({ cls: "deepseek-hover-drag-handle" });
+    dragHandle.createDiv({ cls: "deepseek-hover-drag-pill" });
+    this.setupDragging(dragHandle);
     const resultWrapper = this.containerEl.createDiv({ cls: "deepseek-hover-result-wrapper" });
     this.resultEl = resultWrapper.createDiv({ cls: "deepseek-hover-result" });
-    this.copyBtn = resultWrapper.createEl("button", { text: "Copy", cls: "deepseek-hover-copy-btn" });
+    this.copyBtn = resultWrapper.createEl("button", { cls: "deepseek-hover-copy-btn" });
+    this.copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+    this.copyBtn.title = "Copy";
     this.copyBtn.style.display = "none";
     this.copyBtn.onclick = async () => {
       if (!this.resultEl.innerText) return;
       await navigator.clipboard.writeText(this.resultEl.innerText);
-      this.copyBtn.innerText = "Copied!";
-      setTimeout(() => this.copyBtn.innerText = "Copy", 2e3);
+      const originalHTML = this.copyBtn.innerHTML;
+      this.copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+      setTimeout(() => this.copyBtn.innerHTML = originalHTML, 2e3);
     };
-    this.contextEl = this.containerEl.createDiv({ cls: "deepseek-hover-context" });
+    const footerWrapper = this.containerEl.createDiv({ cls: "chat-footer-wrapper" });
+    this.contextEl = footerWrapper.createDiv({ cls: "deepseek-hover-context" });
     this.contextEl.style.display = "none";
-    const inputWrapper = this.containerEl.createDiv({ cls: "deepseek-hover-input-wrapper" });
-    this.inputEl = inputWrapper.createEl("textarea", { cls: "deepseek-hover-input" });
-    this.inputEl.placeholder = "Ask AI about selection... (Enter to send, Esc to close)";
+    const inputContainer = footerWrapper.createDiv({ cls: "deepseek-hover-input-wrapper" });
+    this.inputEl = inputContainer.createEl("textarea", { cls: "deepseek-hover-input" });
+    this.inputEl.placeholder = "Ask AI about selection...";
     this.inputEl.rows = 1;
+    const hintIcons = inputContainer.createDiv({ cls: "deepseek-hover-hint-icons" });
+    hintIcons.innerHTML = `<span class="deepseek-key-icon">\u21B5</span><span class="deepseek-key-icon">esc</span>`;
+    const helperText = footerWrapper.createDiv({ cls: "deepseek-hover-helper-text" });
+    helperText.innerText = "Enter to send \u2022 Esc to close";
     this.inputEl.addEventListener("input", () => {
       this.inputEl.style.height = "auto";
       this.inputEl.style.height = this.inputEl.scrollHeight + "px";
@@ -1240,6 +1246,7 @@ var DeepSeekHoverView = class {
     };
   }
   async show(editor, selection) {
+    var _a, _b;
     this.selection = selection;
     this.isVisible = true;
     this.containerEl.style.display = "flex";
@@ -1249,26 +1256,19 @@ var DeepSeekHoverView = class {
     if (selection) {
       this.contextEl.innerText = selection;
       this.contextEl.style.display = "block";
+      (_a = this.contextEl.parentElement) == null ? void 0 : _a.classList.add("has-context");
     } else {
       this.contextEl.style.display = "none";
+      (_b = this.contextEl.parentElement) == null ? void 0 : _b.classList.remove("has-context");
     }
-    const cursor = editor.getCursor("from");
-    const coords = editor.coordsAtPos ? editor.coordsAtPos(cursor) : null;
-    if (coords) {
-      const margin = 10;
-      const estimatedHeight = 250;
-      const containerWidth = 400;
-      let top = coords.top - estimatedHeight - margin;
-      let left = coords.left;
-      if (top < 50) {
-        top = coords.bottom + margin;
-      }
-      if (left + containerWidth > window.innerWidth) {
-        left = window.innerWidth - containerWidth - margin;
-      }
-      this.containerEl.style.top = `${top}px`;
-      this.containerEl.style.left = `${left}px`;
-    }
+    const targetWidth = window.innerWidth * 0.4;
+    const targetHeight = window.innerHeight * 0.95;
+    this.containerEl.style.width = `${targetWidth}px`;
+    this.containerEl.style.height = `${targetHeight}px`;
+    const top = (window.innerHeight - targetHeight) / 2;
+    const left = 20;
+    this.containerEl.style.top = `${top}px`;
+    this.containerEl.style.left = `${left}px`;
     this.inputEl.focus();
   }
   hide() {

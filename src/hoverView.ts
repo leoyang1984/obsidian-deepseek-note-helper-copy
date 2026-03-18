@@ -11,7 +11,7 @@ export class DeepSeekHoverView {
     contextEl: HTMLElement;
     copyBtn: HTMLButtonElement;
     llmService: LlmService;
-    selection: string;
+    selection: string = '';
     abortController: AbortController | null = null;
     isVisible: boolean = false;
 
@@ -26,37 +26,50 @@ export class DeepSeekHoverView {
         this.containerEl.style.display = 'none';
         document.body.appendChild(this.containerEl);
 
-        // Header (Used as Drag Handle)
-        const header = (this.containerEl as any).createDiv({ cls: 'deepseek-hover-header' });
-        header.createSpan({ text: 'DeepSeek AI Chat', cls: 'deepseek-hover-title' });
-        const closeBtn = header.createEl('button', { text: '×', cls: 'deepseek-hover-close' });
-        closeBtn.onclick = () => this.hide();
+        // Slim Drag Handle
+        const dragHandle = (this.containerEl as any).createDiv({ cls: 'deepseek-hover-drag-handle' });
+        dragHandle.createDiv({ cls: 'deepseek-hover-drag-pill' });
 
-        this.setupDragging(header);
+        this.setupDragging(dragHandle);
 
         // Result wrapper & area
         const resultWrapper = (this.containerEl as any).createDiv({ cls: 'deepseek-hover-result-wrapper' });
         this.resultEl = resultWrapper.createDiv({ cls: 'deepseek-hover-result' });
         
         // Copy button inside result wrapper
-        this.copyBtn = resultWrapper.createEl('button', { text: 'Copy', cls: 'deepseek-hover-copy-btn' });
+        this.copyBtn = resultWrapper.createEl('button', { cls: 'deepseek-hover-copy-btn' });
+        this.copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+        this.copyBtn.title = "Copy";
         this.copyBtn.style.display = 'none';
         this.copyBtn.onclick = async () => {
             if (!this.resultEl.innerText) return;
             await navigator.clipboard.writeText(this.resultEl.innerText);
-            this.copyBtn.innerText = 'Copied!';
-            setTimeout(() => this.copyBtn.innerText = 'Copy', 2000);
+            const originalHTML = this.copyBtn.innerHTML;
+            this.copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            setTimeout(() => this.copyBtn.innerHTML = originalHTML, 2000);
         };
         
-        // Context indicator (Added above input)
-        this.contextEl = (this.containerEl as any).createDiv({ cls: 'deepseek-hover-context' });
+        // Footer Wrapper (Integrated Panel)
+        const footerWrapper = (this.containerEl as any).createDiv({ cls: 'chat-footer-wrapper' });
+
+        // Context indicator (Selected Text Badge)
+        this.contextEl = footerWrapper.createDiv({ cls: 'deepseek-hover-context' });
         this.contextEl.style.display = 'none';
 
-        // Input area
-        const inputWrapper = (this.containerEl as any).createDiv({ cls: 'deepseek-hover-input-wrapper' });
-        this.inputEl = inputWrapper.createEl('textarea', { cls: 'deepseek-hover-input' });
-        this.inputEl.placeholder = 'Ask AI about selection... (Enter to send, Esc to close)';
+        // Input area (Container for Input + Hint Icons)
+        const inputContainer = footerWrapper.createDiv({ cls: 'deepseek-hover-input-wrapper' });
+        
+        this.inputEl = inputContainer.createEl('textarea', { cls: 'deepseek-hover-input' });
+        this.inputEl.placeholder = 'Ask AI about selection...';
         this.inputEl.rows = 1;
+
+        // Hint Icons (Enter & Esc)
+        const hintIcons = inputContainer.createDiv({ cls: 'deepseek-hover-hint-icons' });
+        hintIcons.innerHTML = `<span class="deepseek-key-icon">↵</span><span class="deepseek-key-icon">esc</span>`;
+
+        // Helper text below
+        const helperText = footerWrapper.createDiv({ cls: 'deepseek-hover-helper-text' });
+        helperText.innerText = 'Enter to send • Esc to close';
 
         // Auto-resize textarea
         this.inputEl.addEventListener('input', () => {
@@ -122,34 +135,24 @@ export class DeepSeekHoverView {
         if (selection) {
             this.contextEl.innerText = selection;
             this.contextEl.style.display = 'block';
+            this.contextEl.parentElement?.classList.add('has-context');
         } else {
             this.contextEl.style.display = 'none';
+            this.contextEl.parentElement?.classList.remove('has-context');
         }
 
-        // Position the container
-        const cursor = editor.getCursor('from');
-        const coords = (editor as any).coordsAtPos ? (editor as any).coordsAtPos(cursor) : null;
+        // Position the container (Fixed Left-Sidebar Style: 40% width, 95% height)
+        const targetWidth = window.innerWidth * 0.4;
+        const targetHeight = window.innerHeight * 0.95;
         
-        if (coords) {
-            const margin = 10;
-            const estimatedHeight = 250; // Use an estimated height so it pops ABOVE the selection initially
-            const containerWidth = 400;
+        this.containerEl.style.width = `${targetWidth}px`;
+        this.containerEl.style.height = `${targetHeight}px`;
 
-            let top = coords.top - estimatedHeight - margin;
-            let left = coords.left;
+        const top = (window.innerHeight - targetHeight) / 2;
+        const left = 20; // 20px margin from the left edge
 
-            // Check if it goes off screen on the top (e.g. selection is near top of screen)
-            if (top < 50) {
-                top = coords.bottom + margin;
-            }
-            // Check if it goes off screen on the right
-            if (left + containerWidth > window.innerWidth) {
-                left = window.innerWidth - containerWidth - margin;
-            }
-
-            this.containerEl.style.top = `${top}px`;
-            this.containerEl.style.left = `${left}px`;
-        }
+        this.containerEl.style.top = `${top}px`;
+        this.containerEl.style.left = `${left}px`;
 
         this.inputEl.focus();
     }
