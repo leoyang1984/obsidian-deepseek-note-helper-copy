@@ -30,7 +30,7 @@ __export(main_exports, {
   default: () => DeepSeekPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian6 = require("obsidian");
+var import_obsidian7 = require("obsidian");
 
 // src/view.ts
 var import_obsidian = require("obsidian");
@@ -790,6 +790,75 @@ var LlmService = class {
       throw error;
     }
   }
+  /**
+   * Executes a streaming AI request.
+   */
+  async streamAsk(prompt, onUpdate, signal) {
+    var _a, _b, _c;
+    const { provider, apiKeys, apiUrl, model } = this.plugin.settings;
+    const apiKey = apiKeys[provider];
+    if (!apiKey) {
+      throw new Error(`API Key not set for provider ${provider}.`);
+    }
+    let endpoint = apiUrl.endsWith("/") ? `${apiUrl}chat/completions` : `${apiUrl}/chat/completions`;
+    const payload = {
+      model,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
+      stream: true
+    };
+    try {
+      this.plugin.logger.log("api", "system", `Starting stream request to ${provider}`, { model });
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(payload),
+        signal
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API error ${response.status}: ${errorText}`);
+      }
+      const reader = (_a = response.body) == null ? void 0 : _a.getReader();
+      if (!reader) throw new Error("Response body is null");
+      const decoder = new TextDecoder();
+      let fullText = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split("\n");
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith("data: ")) continue;
+          const dataStr = trimmed.slice(6);
+          if (dataStr === "[DONE]") break;
+          try {
+            const data = JSON.parse(dataStr);
+            const content = ((_c = (_b = data.choices[0]) == null ? void 0 : _b.delta) == null ? void 0 : _c.content) || "";
+            if (content) {
+              fullText += content;
+              onUpdate(fullText);
+            }
+          } catch (e) {
+          }
+        }
+      }
+      this.plugin.logger.log("api", "assistant", `Stream complete from ${provider}`);
+      return fullText;
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        this.plugin.logger.log("api", "system", "Stream request aborted by user");
+        throw error;
+      }
+      console.error("Streaming LLM request failed:", error);
+      this.plugin.logger.log("api", "system", `Stream failed: ${error instanceof Error ? error.message : String(error)}`);
+      throw error;
+    }
+  }
 };
 
 // src/skillExecutor.ts
@@ -1083,11 +1152,184 @@ var SkillManager = class {
   }
 };
 
+// src/hoverView.ts
+var import_obsidian5 = require("obsidian");
+var DeepSeekHoverView = class {
+  constructor(app, plugin) {
+    __publicField(this, "app");
+    __publicField(this, "plugin");
+    __publicField(this, "containerEl");
+    __publicField(this, "inputEl");
+    __publicField(this, "resultEl");
+    __publicField(this, "contextEl");
+    __publicField(this, "copyBtn");
+    __publicField(this, "llmService");
+    __publicField(this, "selection");
+    __publicField(this, "abortController", null);
+    __publicField(this, "isVisible", false);
+    this.app = app;
+    this.plugin = plugin;
+    this.llmService = new LlmService(plugin);
+    this.containerEl = document.createElement("div");
+    this.containerEl.addClass("deepseek-hover-container");
+    this.containerEl.style.display = "none";
+    document.body.appendChild(this.containerEl);
+    const header = this.containerEl.createDiv({ cls: "deepseek-hover-header" });
+    header.createSpan({ text: "DeepSeek AI Chat", cls: "deepseek-hover-title" });
+    const closeBtn = header.createEl("button", { text: "\xD7", cls: "deepseek-hover-close" });
+    closeBtn.onclick = () => this.hide();
+    this.setupDragging(header);
+    const resultWrapper = this.containerEl.createDiv({ cls: "deepseek-hover-result-wrapper" });
+    this.resultEl = resultWrapper.createDiv({ cls: "deepseek-hover-result" });
+    this.copyBtn = resultWrapper.createEl("button", { text: "Copy", cls: "deepseek-hover-copy-btn" });
+    this.copyBtn.style.display = "none";
+    this.copyBtn.onclick = async () => {
+      if (!this.resultEl.innerText) return;
+      await navigator.clipboard.writeText(this.resultEl.innerText);
+      this.copyBtn.innerText = "Copied!";
+      setTimeout(() => this.copyBtn.innerText = "Copy", 2e3);
+    };
+    this.contextEl = this.containerEl.createDiv({ cls: "deepseek-hover-context" });
+    this.contextEl.style.display = "none";
+    const inputWrapper = this.containerEl.createDiv({ cls: "deepseek-hover-input-wrapper" });
+    this.inputEl = inputWrapper.createEl("textarea", { cls: "deepseek-hover-input" });
+    this.inputEl.placeholder = "Ask AI about selection... (Enter to send, Esc to close)";
+    this.inputEl.rows = 1;
+    this.inputEl.addEventListener("input", () => {
+      this.inputEl.style.height = "auto";
+      this.inputEl.style.height = this.inputEl.scrollHeight + "px";
+    });
+    this.inputEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        void this.handleSubmit();
+      } else if (e.key === "Escape") {
+        this.hide();
+      }
+    });
+    document.addEventListener("mousedown", (e) => {
+      if (this.isVisible && !this.containerEl.contains(e.target)) {
+        this.hide();
+      }
+    });
+  }
+  setupDragging(handle) {
+    let isDragging = false;
+    let startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
+    handle.addEventListener("mousedown", (e) => {
+      if (e.target.tagName.toLowerCase() === "button") return;
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      initialLeft = this.containerEl.offsetLeft;
+      initialTop = this.containerEl.offsetTop;
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
+    });
+    const onMouseMove = (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      this.containerEl.style.left = `${initialLeft + dx}px`;
+      this.containerEl.style.top = `${initialTop + dy}px`;
+    };
+    const onMouseUp = () => {
+      isDragging = false;
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+  }
+  async show(editor, selection) {
+    this.selection = selection;
+    this.isVisible = true;
+    this.containerEl.style.display = "flex";
+    this.resultEl.empty();
+    this.inputEl.value = "";
+    this.inputEl.style.height = "auto";
+    if (selection) {
+      this.contextEl.innerText = selection;
+      this.contextEl.style.display = "block";
+    } else {
+      this.contextEl.style.display = "none";
+    }
+    const cursor = editor.getCursor("from");
+    const coords = editor.coordsAtPos ? editor.coordsAtPos(cursor) : null;
+    if (coords) {
+      const margin = 10;
+      const estimatedHeight = 250;
+      const containerWidth = 400;
+      let top = coords.top - estimatedHeight - margin;
+      let left = coords.left;
+      if (top < 50) {
+        top = coords.bottom + margin;
+      }
+      if (left + containerWidth > window.innerWidth) {
+        left = window.innerWidth - containerWidth - margin;
+      }
+      this.containerEl.style.top = `${top}px`;
+      this.containerEl.style.left = `${left}px`;
+    }
+    this.inputEl.focus();
+  }
+  hide() {
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
+    this.containerEl.style.display = "none";
+    this.isVisible = false;
+  }
+  async handleSubmit() {
+    const prompt = this.inputEl.value.trim();
+    if (!prompt) return;
+    this.copyBtn.style.display = "none";
+    this.inputEl.disabled = true;
+    this.inputEl.placeholder = "AI is thinking...";
+    this.resultEl.empty();
+    this.resultEl.addClass("deepseek-is-loading");
+    this.abortController = new AbortController();
+    try {
+      const fullPrompt = `Context Selection:
+"""
+${this.selection}
+"""
+
+User Question: ${prompt}`;
+      let accumulatedText = "";
+      await this.llmService.streamAsk(
+        fullPrompt,
+        async (text) => {
+          accumulatedText = text;
+          this.resultEl.empty();
+          await import_obsidian5.MarkdownRenderer.render(this.app, accumulatedText, this.resultEl, "", this.plugin);
+          this.resultEl.scrollTop = this.resultEl.scrollHeight;
+        },
+        this.abortController.signal
+      );
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+      } else {
+        new import_obsidian5.Notice("AI Request failed: " + (error instanceof Error ? error.message : String(error)));
+        this.resultEl.createEl("p", { text: "Error: " + (error instanceof Error ? error.message : String(error)), cls: "deepseek-error" });
+      }
+    } finally {
+      this.inputEl.disabled = false;
+      this.inputEl.placeholder = "Ask AI about selection...";
+      this.inputEl.value = "";
+      this.inputEl.style.height = "auto";
+      this.resultEl.removeClass("deepseek-is-loading");
+      this.copyBtn.style.display = "block";
+      this.abortController = null;
+      this.inputEl.focus();
+    }
+  }
+};
+
 // src/main.ts
-var import_obsidian7 = require("obsidian");
+var import_obsidian8 = require("obsidian");
 
 // src/telegramService.ts
-var import_obsidian5 = require("obsidian");
+var import_obsidian6 = require("obsidian");
 var TelegramService = class {
   constructor(plugin) {
     __publicField(this, "plugin");
@@ -1121,7 +1363,7 @@ var TelegramService = class {
     try {
       const offset = tgLastUpdateId + 1;
       const url = `https://api.telegram.org/bot${tgBotToken}/getUpdates?offset=${offset}`;
-      const response = await (0, import_obsidian5.requestUrl)({ url, method: "GET" });
+      const response = await (0, import_obsidian6.requestUrl)({ url, method: "GET" });
       if (response.status !== 200) {
         throw new Error(`Telegram API returned ${response.status}`);
       }
@@ -1192,7 +1434,7 @@ ${content}
 `;
     try {
       let file = vault.getAbstractFileByPath(path);
-      if (file instanceof import_obsidian5.TFile) {
+      if (file instanceof import_obsidian6.TFile) {
         await vault.process(file, (data) => data + formattedEntry);
       } else {
         const pathParts = path.split("/");
@@ -1205,12 +1447,12 @@ ${content}
         await vault.create(path, `# Telegram Notes
 ${formattedEntry}`);
       }
-      new import_obsidian5.Notice(`Telegram message captured to ${path}`);
+      new import_obsidian6.Notice(`Telegram message captured to ${path}`);
       this.plugin.logger.log("system", "system", `Appended Telegram message to ${path}`);
     } catch (error) {
       console.error("Failed to append message to vault:", error);
       this.plugin.logger.log("system", "system", `Failed to append to vault: ${error instanceof Error ? error.message : String(error)}`);
-      new import_obsidian5.Notice(`Failed to save Telegram message: ${error instanceof Error ? error.message : String(error)}`);
+      new import_obsidian6.Notice(`Failed to save Telegram message: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 };
@@ -1237,13 +1479,14 @@ var DEFAULT_SETTINGS = {
   tgPromptTemplate: "\u4F60\u662F\u4E00\u4E2A\u77E5\u8BC6\u5E93\u52A9\u624B\u3002\u4EE5\u4E0B\u662F\u7528\u6237\u5728\u6237\u5916\u901A\u8FC7\u624B\u673A\u3010\u8BED\u97F3\u8F6C\u6587\u5B57\u3011\u53D1\u6765\u7684\u788E\u7247\u8BB0\u5F55\uFF0C\u53EF\u80FD\u5305\u542B\u540C\u97F3\u9519\u522B\u5B57\u548C\u4E2D\u82F1\u5939\u6742\u9519\u8BEF\u3002\u8BF7\u4FEE\u590D\u9519\u8BEF\u3001\u53BB\u9664\u53E3\u8BED\u5E9F\u8BDD\uFF0C\u5E76\u63D0\u70BC\u4E3A\u7ED3\u6784\u6E05\u6670\u7684 Markdown \u683C\u5F0F\uFF08\u53EF\u9002\u5EA6\u52A0\u7C97\u6216\u5217\u70B9\uFF09\u3002\u53EA\u8FD4\u56DE\u5904\u7406\u540E\u7684\u5185\u5BB9\uFF0C\u4E0D\u8981\u56DE\u590D\u5176\u4ED6\u5E9F\u8BDD\u3002\u539F\u6587\uFF1A\n{{tg_message}}",
   tgLastUpdateId: 0
 };
-var DeepSeekPlugin = class extends import_obsidian6.Plugin {
+var DeepSeekPlugin = class extends import_obsidian7.Plugin {
   constructor() {
     super(...arguments);
     __publicField(this, "settings", DEFAULT_SETTINGS);
     __publicField(this, "skillManager");
     __publicField(this, "logger", new ExecutionLogger());
     __publicField(this, "telegramService");
+    __publicField(this, "hoverView");
   }
   async onload() {
     await this.loadSettings();
@@ -1258,6 +1501,21 @@ var DeepSeekPlugin = class extends import_obsidian6.Plugin {
     this.skillManager = new SkillManager(this.app, this);
     this.app.workspace.onLayoutReady(() => {
       void this.skillManager.loadSkills().catch(console.error);
+    });
+    this.hoverView = new DeepSeekHoverView(this.app, this);
+    this.addCommand({
+      id: "deepseek-hover-ai",
+      name: "Hover AI Chat",
+      editorCallback: (editor) => {
+        const selection = editor.getSelection();
+        this.hoverView.show(editor, selection);
+      },
+      hotkeys: [
+        {
+          modifiers: ["Mod", "Shift"],
+          key: "j"
+        }
+      ]
     });
     this.telegramService = new TelegramService(this);
     this.startPolling();
@@ -1302,7 +1560,7 @@ var DeepSeekPlugin = class extends import_obsidian6.Plugin {
     await this.saveData(this.settings);
   }
 };
-var DeepSeekSettingTab = class extends import_obsidian7.PluginSettingTab {
+var DeepSeekSettingTab = class extends import_obsidian8.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     __publicField(this, "plugin");
@@ -1311,8 +1569,8 @@ var DeepSeekSettingTab = class extends import_obsidian7.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    new import_obsidian7.Setting(containerEl).setName("Deepseek").setHeading();
-    new import_obsidian7.Setting(containerEl).setName("AI Provider").setDesc("Select the AI service provider.").addDropdown((drop) => drop.addOption("deepseek", "DeepSeek").addOption("kimi", "Kimi (Moonshot)").addOption("openai", "OpenAI").addOption("custom", "Custom").setValue(this.plugin.settings.provider).onChange(async (value) => {
+    new import_obsidian8.Setting(containerEl).setName("Deepseek").setHeading();
+    new import_obsidian8.Setting(containerEl).setName("AI Provider").setDesc("Select the AI service provider.").addDropdown((drop) => drop.addOption("deepseek", "DeepSeek").addOption("kimi", "Kimi (Moonshot)").addOption("openai", "OpenAI").addOption("custom", "Custom").setValue(this.plugin.settings.provider).onChange(async (value) => {
       this.plugin.settings.provider = value;
       if (value === "deepseek") {
         this.plugin.settings.apiUrl = "https://api.deepseek.com";
@@ -1327,41 +1585,41 @@ var DeepSeekSettingTab = class extends import_obsidian7.PluginSettingTab {
       await this.plugin.saveSettings();
       this.display();
     }));
-    new import_obsidian7.Setting(containerEl).setName("API key").setDesc(`Enter your API key for ${this.plugin.settings.provider}.`).addText((text) => text.setValue(this.plugin.settings.apiKeys[this.plugin.settings.provider] || "").onChange((value) => {
+    new import_obsidian8.Setting(containerEl).setName("API key").setDesc(`Enter your API key for ${this.plugin.settings.provider}.`).addText((text) => text.setValue(this.plugin.settings.apiKeys[this.plugin.settings.provider] || "").onChange((value) => {
       this.plugin.settings.apiKeys[this.plugin.settings.provider] = value;
       if (this.plugin.settings.provider === "deepseek") {
         this.plugin.settings.apiKey = value;
       }
       void this.plugin.saveSettings().catch(console.error);
     }));
-    new import_obsidian7.Setting(containerEl).setName("API URL").setDesc("Endpoint for the API. (Will auto-update if Provider is changed)").addText((text) => text.setValue(this.plugin.settings.apiUrl).onChange((value) => {
+    new import_obsidian8.Setting(containerEl).setName("API URL").setDesc("Endpoint for the API. (Will auto-update if Provider is changed)").addText((text) => text.setValue(this.plugin.settings.apiUrl).onChange((value) => {
       this.plugin.settings.apiUrl = value;
       void this.plugin.saveSettings().catch(console.error);
     }));
-    new import_obsidian7.Setting(containerEl).setName("Model").setDesc("Model to use.").addText((text) => text.setValue(this.plugin.settings.model).onChange((value) => {
+    new import_obsidian8.Setting(containerEl).setName("Model").setDesc("Model to use.").addText((text) => text.setValue(this.plugin.settings.model).onChange((value) => {
       this.plugin.settings.model = value;
       void this.plugin.saveSettings().catch(console.error);
     }));
-    new import_obsidian7.Setting(containerEl).setName("Skills directory").setDesc("Folder where your Markdown skills are stored (e.g. DeepSeek-Skills).").addText((text) => text.setValue(this.plugin.settings.skillsDirectory).onChange((value) => {
+    new import_obsidian8.Setting(containerEl).setName("Skills directory").setDesc("Folder where your Markdown skills are stored (e.g. DeepSeek-Skills).").addText((text) => text.setValue(this.plugin.settings.skillsDirectory).onChange((value) => {
       this.plugin.settings.skillsDirectory = value;
       void this.plugin.skillManager.loadSkills().catch(console.error);
     }));
-    new import_obsidian7.Setting(containerEl).setName("Log export directory").setDesc("Folder where execution logs will be exported (e.g. DeepSeek-Logs).").addText((text) => text.setValue(this.plugin.settings.logDirectory).onChange(async (value) => {
+    new import_obsidian8.Setting(containerEl).setName("Log export directory").setDesc("Folder where execution logs will be exported (e.g. DeepSeek-Logs).").addText((text) => text.setValue(this.plugin.settings.logDirectory).onChange(async (value) => {
       this.plugin.settings.logDirectory = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian7.Setting(containerEl).setName("Telegram Sync Settings").setHeading();
-    new import_obsidian7.Setting(containerEl).setName("Telegram Bot Token").setDesc("Token from @BotFather.").addText((text) => text.setPlaceholder("Enter your bot token").setValue(this.plugin.settings.tgBotToken).onChange(async (value) => {
+    new import_obsidian8.Setting(containerEl).setName("Telegram Sync Settings").setHeading();
+    new import_obsidian8.Setting(containerEl).setName("Telegram Bot Token").setDesc("Token from @BotFather.").addText((text) => text.setPlaceholder("Enter your bot token").setValue(this.plugin.settings.tgBotToken).onChange(async (value) => {
       this.plugin.settings.tgBotToken = value;
       await this.plugin.saveSettings();
       this.plugin.startPolling();
     }));
-    new import_obsidian7.Setting(containerEl).setName("My Chat ID").setDesc("Whitelisted Chat ID to receive messages from.").addText((text) => text.setPlaceholder("Enter your Chat ID").setValue(this.plugin.settings.tgChatId).onChange(async (value) => {
+    new import_obsidian8.Setting(containerEl).setName("My Chat ID").setDesc("Whitelisted Chat ID to receive messages from.").addText((text) => text.setPlaceholder("Enter your Chat ID").setValue(this.plugin.settings.tgChatId).onChange(async (value) => {
       this.plugin.settings.tgChatId = value;
       await this.plugin.saveSettings();
       this.plugin.startPolling();
     }));
-    new import_obsidian7.Setting(containerEl).setName("Polling Interval (seconds)").setDesc("How often to check for new messages.").addText((text) => text.setValue(String(this.plugin.settings.tgPollingInterval)).onChange(async (value) => {
+    new import_obsidian8.Setting(containerEl).setName("Polling Interval (seconds)").setDesc("How often to check for new messages.").addText((text) => text.setValue(String(this.plugin.settings.tgPollingInterval)).onChange(async (value) => {
       const num = parseInt(value);
       if (!isNaN(num) && num > 0) {
         this.plugin.settings.tgPollingInterval = num;
@@ -1369,15 +1627,15 @@ var DeepSeekSettingTab = class extends import_obsidian7.PluginSettingTab {
         this.plugin.startPolling();
       }
     }));
-    new import_obsidian7.Setting(containerEl).setName("Target Note Path").setDesc("Path to the Markdown file where notes will be saved (e.g. Inbox/TG-Notes.md).").addText((text) => text.setValue(this.plugin.settings.tgSavePath).onChange(async (value) => {
+    new import_obsidian8.Setting(containerEl).setName("Target Note Path").setDesc("Path to the Markdown file where notes will be saved (e.g. Inbox/TG-Notes.md).").addText((text) => text.setValue(this.plugin.settings.tgSavePath).onChange(async (value) => {
       this.plugin.settings.tgSavePath = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian7.Setting(containerEl).setName("Enable DeepSeek Processing").setDesc("Use AI to format and correct the incoming messages.").addToggle((toggle) => toggle.setValue(this.plugin.settings.tgAiProcessing).onChange(async (value) => {
+    new import_obsidian8.Setting(containerEl).setName("Enable DeepSeek Processing").setDesc("Use AI to format and correct the incoming messages.").addToggle((toggle) => toggle.setValue(this.plugin.settings.tgAiProcessing).onChange(async (value) => {
       this.plugin.settings.tgAiProcessing = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian7.Setting(containerEl).setName("Prompt Template").setDesc("Template for AI processing. Use {{tg_message}} as placeholder.").addTextArea((text) => text.setValue(this.plugin.settings.tgPromptTemplate).onChange(async (value) => {
+    new import_obsidian8.Setting(containerEl).setName("Prompt Template").setDesc("Template for AI processing. Use {{tg_message}} as placeholder.").addTextArea((text) => text.setValue(this.plugin.settings.tgPromptTemplate).onChange(async (value) => {
       this.plugin.settings.tgPromptTemplate = value;
       await this.plugin.saveSettings();
     }));

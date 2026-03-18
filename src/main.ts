@@ -43,12 +43,14 @@ const DEFAULT_SETTINGS: DeepSeekSettings = {
 }
 
 import { SkillManager } from './skillManager';
+import { DeepSeekHoverView } from './hoverView';
 
 export default class DeepSeekPlugin extends Plugin {
     settings: DeepSeekSettings = DEFAULT_SETTINGS;
     skillManager!: SkillManager;
     logger: ExecutionLogger = new ExecutionLogger();
     telegramService!: TelegramService;
+    hoverView: DeepSeekHoverView;
 
     async onload() {
         await this.loadSettings();
@@ -68,6 +70,25 @@ export default class DeepSeekPlugin extends Plugin {
         this.skillManager = new SkillManager(this.app, this);
         this.app.workspace.onLayoutReady(() => {
             void this.skillManager.loadSkills().catch(console.error);
+        });
+
+        // Initialize Hover View
+        this.hoverView = new DeepSeekHoverView(this.app, this);
+
+        // Add Hover Command
+        this.addCommand({
+            id: 'deepseek-hover-ai',
+            name: 'Hover AI Chat',
+            editorCallback: (editor) => {
+                const selection = editor.getSelection();
+                this.hoverView.show(editor, selection);
+            },
+            hotkeys: [
+                {
+                    modifiers: ['Mod', 'Shift'],
+                    key: 'j',
+                },
+            ],
         });
 
         // Initialize Telegram Service

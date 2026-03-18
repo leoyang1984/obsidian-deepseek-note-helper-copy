@@ -1,15 +1,16 @@
 # Active Context
 
 ## Current Focus
-Wrapping up the **Agentic Pipeline (V3)** phase. The system is functional and documented.
+Implemented the **Hover AI Chat (v1.6.0)** feature. This feature brings real-time AI assistance directly into the editor view with a draggable/resizable modal.
 
 ## Recent Changes
-- Fixed syntax errors in `view.ts` related to brace mismatches.
-- Fixed a bug in `SkillManager.ts` where pipeline skills missing a top-level `action` were ignored.
-- Fixed a bug in `SkillExecutor.ts` where `insert_below` was accidentally removed during refactoring.
-- Created `Skill Architect` meta-skill to lower the barrier for creating new pipelines.
-- Stylized the "Manual Intervention" card in CSS with animations and clear status indicators.
-- **v1.5.1**: Cleaned up repository, optimized `.gitignore` (specifically ignoring the large `test-vault/` and release folders), and synchronized version numbers across `package.json`, `manifest.json`, and `versions.json`.
+- Implemented `streamAsk` in `LlmService` using native `fetch` API for real-time text streaming.
+- Added `DeepSeekHoverView` (`src/hoverView.ts`) for rendering context-aware floating UI.
+- Integrated Hover UI triggering via `Cmd+Shift+J` global hotkey.
+- Styled Hover UI with glassmorphism, making it movable and resizable.
+- Fixed `user-select: text` and absolute copy button placement for better UX.
+- Released version **1.6.0** across `package.json`, `manifest.json`, and `versions.json`.
+- Previously: Cleaned up `.gitignore` and finalized V3 Pipeline features.
 
 ## Contextual Notes
 - Pipeline DSL matches `[STEP: ID]`. ID can be Chinese.

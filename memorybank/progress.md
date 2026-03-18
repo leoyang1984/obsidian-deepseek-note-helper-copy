@@ -21,14 +21,22 @@
 ### 4. Developer Tools
 - [x] HOT RELOAD for skill files.
 - [x] V3 Documentation and Templates.
-24: 
-25: ### 5. Maintenance & Optimization (v1.5.1)
-26: - [x] Cleaned up repository by removing large test folders (`test-vault/`) from Git tracking.
-27: - [x] Optimized `.gitignore` for better development workflow.
-28: - [x] Synchronized version identifiers across all config files.
+
+### 5. Hover AI Chat (v1.6.0)
+- [x] Floating context-aware UI that pops up over the editor.
+- [x] Streaming LLM response native support (`streamAsk`).
+- [x] Global Hotkey integration (`Cmd+Shift+J`).
+- [x] Movable header handle, resizable container, and one-click copy button.
+- [x] Visual context indicator so users don't lose track of their highlight.
+
+### 6. Maintenance & Optimization (v1.5.1)
+- [x] Cleaned up repository by removing large test folders (`test-vault/`) from Git tracking.
+- [x] Optimized `.gitignore` for better development workflow.
+- [x] Synchronized version identifiers across all config files.
 
 ## Current Status
-System is stable. Multi-step workflows and human-intervention cards are fully functional with premium CSS styling.
+System is stable. Multi-step workflows, Sidebar Chat, and the new **Hover UI** are fully functional with premium CSS styling. 
+
 
 ## Next Steps 🚀
 - [ ] Support more variables (date, path, props).

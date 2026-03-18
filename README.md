@@ -29,6 +29,12 @@ The latest version introduces **Light Skills**, a Markdown-based DSL that allows
 
 ### 🚀 Core Features
 
+#### 1. 🔍 Hover AI Chat (New in v1.6.0)
+- **Instant Access**: Select any text in your editor and press `Cmd+Shift+J` (Mac) / `Ctrl+Shift+J` (Win) to summon a floating AI chat window directly over your notes.
+- **Context-Aware**: The window locks onto your highlighted text, ensuring the AI maintains context even if the editor highlight disappears.
+- **Real-Time Streaming**: Watch responses stream in instantly.
+- **Premium UX**: Draggable, resizable (CSS-based), glassmorphism design, and one-click copy button.
+
 #### 1. 🤖 Multi-Provider Support (DeepSeek, Kimi, etc.)
 - Supports any OpenAI-compatible API. Native optimizations for **DeepSeek** and **Kimi**.
 - Switch models seamlessly in settings to balance speed, cost, and reasoning power.
@@ -73,7 +79,8 @@ This project is licensed under a **Custom Non-Commercial License**. Commercial u
 
 ### 📝 Changelog
 
-62: - **v1.5.1 (2026-03-17)**: Maintenance release. Cleaned up repository and optimized Git synchronization rules.
+- **v1.6.0 (2026-03-18)**: Added **Hover AI Chat** with real-time streaming, movable/resizable floating UI, and immediate context-awareness.
+- **v1.5.1 (2026-03-17)**: Maintenance release. Cleaned up repository and optimized Git synchronization rules.
 
 ---
 
@@ -91,6 +98,12 @@ This project is licensed under a **Custom Non-Commercial License**. Commercial u
 ---
 
 ### 🚀 核心亮点
+
+#### 1. 🔍 划词浮窗 AI (v1.6.0 全新特性)
+- **即时响应**：在编辑器中选中任意文本，按下 `Cmd+Shift+J` (Mac) / `Ctrl+Shift+J` (Win) 即可在内容旁唤起 AI 浮窗。
+- **上下文感知**：浮窗会锁定您选中的文本，并在界面上方保留视觉反馈，让提问更有针对性。
+- **流式输出**：支持打字机效果的实时进度渲染，告别干等。
+- **极致体验**：支持拖拽移动、支持右下角拉伸大小，提供一键复制按钮与毛玻璃质感 UI。
 
 #### 1. 🤖 多模型支持 (DeepSeek, Kimi 等)
 - 支持任何兼容 OpenAI 格式的 API。针对 **DeepSeek** 和 **Kimi** 进行了原生优化。
@@ -136,7 +149,8 @@ This project is licensed under a **Custom Non-Commercial License**. Commercial u
 
 ### 📝 更新日志
 
-106: - **v1.5.1 (2026-03-17)**：日常维护。清理仓库冗余数据，优化 Git 同步规则。
+- **v1.6.0 (2026-03-18)**：新增**划词浮窗 AI Chat**，支持流式输出、拖拽移动与拉伸大小，显著提升行内交互体验。
+- **v1.5.1 (2026-03-17)**：日常维护。清理仓库冗余数据，优化 Git 同步规则。
 
 ---
 *与 AI 共建您的数字花园！*
