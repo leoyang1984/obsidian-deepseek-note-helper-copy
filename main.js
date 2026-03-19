@@ -1282,11 +1282,15 @@ var DeepSeekHoverView = class {
   async handleSubmit() {
     const prompt = this.inputEl.value.trim();
     if (!prompt) return;
-    this.copyBtn.style.display = "none";
+    this.inputEl.value = "";
+    this.inputEl.style.height = "auto";
     this.inputEl.disabled = true;
     this.inputEl.placeholder = "AI is thinking...";
+    this.copyBtn.style.display = "none";
     this.resultEl.empty();
     this.resultEl.addClass("deepseek-is-loading");
+    const userMsgDiv = this.resultEl.createDiv({ cls: "deepseek-hover-user-msg" });
+    userMsgDiv.innerHTML = `<strong>You:</strong> ${prompt}`;
     this.abortController = new AbortController();
     try {
       const fullPrompt = `Context Selection:
@@ -1296,12 +1300,13 @@ ${this.selection}
 
 User Question: ${prompt}`;
       let accumulatedText = "";
+      const responseDiv = this.resultEl.createDiv({ cls: "deepseek-hover-assistant-msg" });
       await this.llmService.streamAsk(
         fullPrompt,
         async (text) => {
           accumulatedText = text;
-          this.resultEl.empty();
-          await import_obsidian5.MarkdownRenderer.render(this.app, accumulatedText, this.resultEl, "", this.plugin);
+          responseDiv.empty();
+          await import_obsidian5.MarkdownRenderer.render(this.app, accumulatedText, responseDiv, "", this.plugin);
           this.resultEl.scrollTop = this.resultEl.scrollHeight;
         },
         this.abortController.signal
@@ -1315,8 +1320,6 @@ User Question: ${prompt}`;
     } finally {
       this.inputEl.disabled = false;
       this.inputEl.placeholder = "Ask AI about selection...";
-      this.inputEl.value = "";
-      this.inputEl.style.height = "auto";
       this.resultEl.removeClass("deepseek-is-loading");
       this.copyBtn.style.display = "block";
       this.abortController = null;

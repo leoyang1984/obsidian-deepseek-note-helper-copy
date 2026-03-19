@@ -170,11 +170,19 @@ export class DeepSeekHoverView {
         const prompt = this.inputEl.value.trim();
         if (!prompt) return;
 
-        this.copyBtn.style.display = 'none';
+        // Clear input immediately for better UX
+        this.inputEl.value = '';
+        this.inputEl.style.height = 'auto';
         this.inputEl.disabled = true;
         this.inputEl.placeholder = 'AI is thinking...';
+
+        this.copyBtn.style.display = 'none';
         (this.resultEl as HTMLElement).empty();
         (this.resultEl as HTMLElement).addClass('deepseek-is-loading');
+
+        // Show user's question in result area instantly
+        const userMsgDiv = this.resultEl.createDiv({ cls: 'deepseek-hover-user-msg' });
+        userMsgDiv.innerHTML = `<strong>You:</strong> ${prompt}`;
 
         this.abortController = new AbortController();
 
@@ -182,12 +190,16 @@ export class DeepSeekHoverView {
             const fullPrompt = `Context Selection:\n"""\n${this.selection}\n"""\n\nUser Question: ${prompt}`;
             
             let accumulatedText = '';
+            
+            // Create assistant response container
+            const responseDiv = this.resultEl.createDiv({ cls: 'deepseek-hover-assistant-msg' });
+
             await this.llmService.streamAsk(
                 fullPrompt,
                 async (text: string) => {
                     accumulatedText = text;
-                    this.resultEl.empty();
-                    await MarkdownRenderer.render(this.app, accumulatedText, this.resultEl, '', this.plugin);
+                    responseDiv.empty();
+                    await MarkdownRenderer.render(this.app, accumulatedText, responseDiv, '', this.plugin);
                     // Scroll to bottom of result area if needed
                     this.resultEl.scrollTop = this.resultEl.scrollHeight;
                 },
@@ -198,13 +210,11 @@ export class DeepSeekHoverView {
                 // Ignore
             } else {
                 new Notice('AI Request failed: ' + (error instanceof Error ? error.message : String(error)));
-                (this.resultEl as any).createEl('p', { text: 'Error: ' + (error instanceof Error ? error.message : String(error)), cls: 'deepseek-error' });
+                this.resultEl.createEl('p', { text: 'Error: ' + (error instanceof Error ? error.message : String(error)), cls: 'deepseek-error' });
             }
         } finally {
             this.inputEl.disabled = false;
             this.inputEl.placeholder = 'Ask AI about selection...';
-            this.inputEl.value = '';
-            this.inputEl.style.height = 'auto';
             (this.resultEl as any).removeClass('deepseek-is-loading');
             this.copyBtn.style.display = 'block';
             this.abortController = null;
