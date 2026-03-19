@@ -1,7 +1,7 @@
 {
     "id": "deepseek-note-helper",
     "name": "Deepseek note helper",
-    "version": "1.6.0",
+    "version": "1.6.1",
     "minAppVersion": "0.15.0",
     "description": "Modify your local notes using Deepseek in the right sidebar. Supports agentic tool calling, Rag and bidirectional links.",
     "author": "leoyang1984",
