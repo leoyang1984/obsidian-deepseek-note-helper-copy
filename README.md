@@ -30,7 +30,8 @@ The latest version introduces **Light Skills**, a Markdown-based DSL that allows
 ### 🚀 Core Features
 
 #### 1. 🔍 Hover AI Chat (New in v1.6.0)
-- **Instant Access**: Select any text in your editor and press `Cmd+Shift+J` (Mac) / `Ctrl+Shift+J` (Win) to summon a floating AI chat window directly over your notes.
+- **Instant Access**: Select any text in your editor and press `Cmd+Shift+J` (Mac) / `Ctrl+Shift+J` (Win) to summon a sleek AI chat window.
+- **Immersive Left-Sidebar Layout**: The window automatically anchors to the left side of your screen (40% width) to give you a massive workspace without blocking your reading pane.
 - **Context-Aware**: The window locks onto your highlighted text, ensuring the AI maintains context even if the editor highlight disappears.
 - **Real-Time Streaming**: Watch responses stream in instantly.
 - **Premium UX**: Draggable, resizable (CSS-based), glassmorphism design, and one-click copy button.
@@ -100,7 +101,8 @@ This project is licensed under a **Custom Non-Commercial License**. Commercial u
 ### 🚀 核心亮点
 
 #### 1. 🔍 划词浮窗 AI (v1.6.0 全新特性)
-- **即时响应**：在编辑器中选中任意文本，按下 `Cmd+Shift+J` (Mac) / `Ctrl+Shift+J` (Win) 即可在内容旁唤起 AI 浮窗。
+- **即时响应**：在编辑器中选中任意文本，按下 `Cmd+Shift+J` (Mac) / `Ctrl+Shift+J` (Win) 即可随时唤起 AI 对话。
+- **沉浸式左侧边栏布局**：浮窗默认以 40% 宽度、95% 高度吸附于屏幕左侧。既保证了充足的问答阅读空间，又完全不遮挡右侧的原笔记。
 - **上下文感知**：浮窗会锁定您选中的文本，并在界面上方保留视觉反馈，让提问更有针对性。
 - **流式输出**：支持打字机效果的实时进度渲染，告别干等。
 - **极致体验**：支持拖拽移动、支持右下角拉伸大小，提供一键复制按钮与毛玻璃质感 UI。
