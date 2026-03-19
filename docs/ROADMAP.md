@@ -23,7 +23,7 @@ The plugin currently has completed its core context awareness, streaming interac
 > - [x] **Fix settings persistence failure**: The `this.plugin.saveSettings()` method call error in `main.ts` has been fixed, and configuration can now correctly persist.
 
 ## ✅ Phase 1: Interactive Experience (Completed)
-- [x] **Hover UI Modal (v1.6.0)**
+- [x] **Hover UI Modal (v1.6.1)**
   Floating, context-aware AI chat window triggered by hotkey (`Cmd+Shift+J`) directly over the editor for immediate, sidebar-free access.
 - [x] **Streaming Response (Native)**
   Integrated DeepSeek API and adapted it for native Obsidian `requestUrl` compliance while maintaining fast rendering.
@@ -90,7 +90,7 @@ The plugin currently has completed its core context awareness, streaming interac
 > - [x] **解决设置持久化失效问题**：已修复 `main.ts` 中的 `this.plugin.saveSettings()` 方法调用错误，现在配置可以正确持久化保存了。
 
 ## ✅ 第一阶段：交互体验（已完成）
-- [x] **划词浮窗 AI Chat (v1.6.0)**
+- [x] **划词浮窗 AI Chat (v1.6.1)**
   通过全局快捷键 (`Cmd+Shift+J`) 在编辑器上方直接唤起悬浮交互窗口，上下文精准锁定，支持拖拽与实时流式输出，无需侧边栏亦可问答。
 - [x] **原生极速响应 (Native Response)**
   接入 DeepSeek API 并完美适配了 Obsidian 原生的 `requestUrl` 安全规范。

@@ -22,12 +22,14 @@
 - [x] HOT RELOAD for skill files.
 - [x] V3 Documentation and Templates.
 
-### 5. Hover AI Chat (v1.6.0)
+### 5. Hover AI Chat (v1.6.1)
 - [x] Floating context-aware UI that pops up over the editor.
+- [x] **v1.6.1**: Optimized input/output UX (immediate clearing, scrollable context, full-height output).
 - [x] Streaming LLM response native support (`streamAsk`).
 - [x] Global Hotkey integration (`Cmd+Shift+J`).
 - [x] Movable header handle, resizable container, and one-click copy button.
 - [x] Visual context indicator so users don't lose track of their highlight.
+
 
 ### 6. Maintenance & Optimization (v1.5.1)
 - [x] Cleaned up repository by removing large test folders (`test-vault/`) from Git tracking.
