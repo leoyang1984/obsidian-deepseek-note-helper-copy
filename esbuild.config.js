@@ -1,6 +1,7 @@
 const esbuild = require("esbuild");
 const process = require("process");
 const fs = require("fs");
+const path = require("path");
 
 const banner =
     `/*
@@ -17,26 +18,21 @@ if (!prod && !fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
 }
 
+// Copy manifest for hot reload if not prod
+if (!prod) {
+    fs.copyFileSync("manifest.json", `${dir}/manifest.json`);
+}
+
+// Ensure the build finishes before copying production release files
 esbuild.build({
-    banner: {
-        js: banner,
-    },
+    banner: { js: banner },
     entryPoints: ["src/main.ts"],
     bundle: true,
     external: [
-        "obsidian",
-        "electron",
-        "@codemirror/autocomplete",
-        "@codemirror/collab",
-        "@codemirror/commands",
-        "@codemirror/language",
-        "@codemirror/lint",
-        "@codemirror/search",
-        "@codemirror/state",
-        "@codemirror/view",
-        "@lezer/common",
-        "@lezer/highlight",
-        "@lezer/lr",
+        "obsidian", "electron", "@codemirror/autocomplete", "@codemirror/collab",
+        "@codemirror/commands", "@codemirror/language", "@codemirror/lint",
+        "@codemirror/search", "@codemirror/state", "@codemirror/view",
+        "@lezer/common", "@lezer/highlight", "@lezer/lr",
         ...Object.keys(require("./package.json").dependencies || {}),
         ...Object.keys(require("./package.json").peerDependencies || {}),
     ],
@@ -46,9 +42,22 @@ esbuild.build({
     sourcemap: prod ? false : "inline",
     treeShaking: true,
     outfile: "main.js",
+}).then(() => {
+    // Post-build actions for release packaging
+    if (prod) {
+        const manifest = require('./manifest.json');
+        const version = manifest.version;
+        const releaseDir = `./releases/v${version}`;
+        
+        if (!fs.existsSync(releaseDir)) {
+            fs.mkdirSync(releaseDir, { recursive: true });
+        }
+        
+        fs.copyFileSync("main.js", path.join(releaseDir, "main.js"));
+        fs.copyFileSync("manifest.json", path.join(releaseDir, "manifest.json"));
+        if (fs.existsSync("styles.css")) {
+            fs.copyFileSync("styles.css", path.join(releaseDir, "styles.css"));
+        }
+        console.log(`✅ Production build complete. Release files prepared in: ${releaseDir}/`);
+    }
 }).catch(() => process.exit(1));
-
-// Copy manifest
-if (!prod) {
-    fs.copyFileSync("manifest.json", `${dir}/manifest.json`);
-}

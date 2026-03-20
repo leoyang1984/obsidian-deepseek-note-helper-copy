@@ -31,19 +31,16 @@
   - 如果这次开发引入了全新的架构（如 EditorSuggest 原生拦截、新的 Context Parsing），请在此记录模式与决策原因。
 
 ## 🟣 4. 编译与打包 (Build & Package)
-- [ ] **代码编译**: 在终端运行 `node esbuild.config.js production`（或如果你配了 `"build": "node esbuild.config.js production"` 则运行 `npm run build`）。
-- [ ] **Typescript 检查**: 运行 `npx tsc --noEmit` 确保没有漏网的 TS 报错。
-- [ ] **打压缩包 (ZIP)**: 将生成的 `main.js`、`manifest.json` 和 `styles.css` 三个文件放入同名文件夹或直接打包为 `.zip` 文件（如 `plugin-release-V3.zip`），准备用于分发。
+- [ ] **执行编译**: 在终端运行 `node esbuild.config.js production`。
+- [ ] **提取发行版文件**: 脚手架会自动读取版本号，并在根目录下生成类似于 `releases/v1.7.0/` 的文件夹，里面存放着干净整洁的 `main.js`、`manifest.json`、`styles.css`，这就是你要发布的最终内容。
 
 ## 🔴 5. Git 提交与 GitHub 归档 (Sync & Release)
-- [ ] **检查修改** (`git status`): 确认没有意外包含如 `test-vault/` 等测试数据（应在 `.gitignore` 外或清理干净）。
-- [ ] **Commit**: 编写优雅的提交信息（例如 `feat: implemented contextual slash commands (v1.7.0)`）。
-- [ ] **Push**: 推送至 `origin main`。
+- [ ] **检查修改** (`git status`): 确认不包含敏感测试数据。
+- [ ] **Commit & Push**: 编写提交信息并推送代码 (`git push`)。
 - [ ] **GitHub Release**: 
-  - 去 GitHub 代码仓库新建一期 Release。
-  - Tag name 填写版本号（如 `1.7.0`）。
-  - Release Title 写上亮眼的新特性介绍。
-  - 将刚才打包出的 `.zip` 上传到附件中发布。
+  - 前往 GitHub 仓库点击 **Draft a new release**。
+  - Tag name 和版本号一致（如 `v1.7.0`）。
+  - **进入刚生成好的 `releases/v1.7.0/` 文件夹，将里面的这 3 个文件一并拖入 GitHub 的网页附件框中发布。**
 
 ---
 ✅ *完成以上所有步骤，你就完整闭环了一次专业级的 Obsidian 插件更新！*

@@ -2,7 +2,7 @@
 node_modules/
 
 # Build outputs (Obsidian requires main.js and styles.css in the repo)
-# main.js (Removed from ignore to allow plugin installation)
+releases/
 plugin-release（obsidian-deepseek-note-helper）/
 plugin-release（obsidian-deepseek-note-helper）-*.zip
 
