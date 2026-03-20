@@ -30,7 +30,7 @@ __export(main_exports, {
   default: () => DeepSeekPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian7 = require("obsidian");
+var import_obsidian8 = require("obsidian");
 
 // src/view.ts
 var import_obsidian = require("obsidian");
@@ -871,12 +871,35 @@ var SkillExecutor = class {
     this.plugin = plugin;
     this.llm = new LlmService(plugin);
   }
-  async execute(skill) {
+  async execute(skill, execCtx) {
     this.plugin.logger.log("pipeline", "system", `Starting execution of skill: ${skill.name}`, { skill });
     const activeView = this.app.workspace.getActiveViewOfType(import_obsidian3.MarkdownView);
     const activeFile = this.app.workspace.getActiveFile();
+    const editor = (execCtx == null ? void 0 : execCtx.editor) || (activeView == null ? void 0 : activeView.editor);
+    let selection = editor ? editor.getSelection() : "";
+    let textToReplaceStart;
+    if ((execCtx == null ? void 0 : execCtx.source) === "slash" && execCtx.triggerRange && editor && !selection) {
+      const startLine = execCtx.triggerRange.start.line;
+      const lineStr = editor.getLine(startLine);
+      let blockLines = [];
+      const currentLinePre = lineStr.substring(0, execCtx.triggerRange.start.ch).trim();
+      if (currentLinePre) {
+        selection = currentLinePre;
+        textToReplaceStart = { line: startLine, ch: 0 };
+      } else {
+        let scanLine = startLine - 1;
+        while (scanLine >= 0) {
+          const content = editor.getLine(scanLine).trim();
+          if (!content) break;
+          blockLines.unshift(content);
+          scanLine--;
+        }
+        selection = blockLines.join("\n");
+        textToReplaceStart = { line: scanLine + 1, ch: 0 };
+      }
+    }
     const initialContext = {
-      selection: activeView ? activeView.editor.getSelection() : "",
+      selection,
       title: activeFile ? activeFile.basename : "",
       content: activeFile ? await this.app.vault.cachedRead(activeFile) : ""
     };
@@ -889,15 +912,19 @@ var SkillExecutor = class {
     if (skill.mode === "pipeline" && skill.steps) {
       await this.executePipeline(skill, initialContext, activeView);
     } else {
+      let action = skill.action;
+      if ((execCtx == null ? void 0 : execCtx.source) === "slash" && action !== "insert_below" && action !== "to_chat") {
+        action = "replace";
+      }
       let prompt = this.renderTemplate(skill.template, initialContext);
-      if (skill.action === "to_chat") {
+      if (action === "to_chat") {
         await this.executeToChat(prompt);
-      } else if (skill.action === "replace") {
-        await this.executeReplace(prompt, activeView);
-      } else if (skill.action === "insert_below") {
-        await this.executeInsert(prompt, activeView);
+      } else if (action === "replace") {
+        await this.executeReplace(prompt, activeView, execCtx, textToReplaceStart);
+      } else if (action === "insert_below") {
+        await this.executeInsert(prompt, activeView, execCtx);
       } else {
-        console.log(`Action ${skill.action} is not yet implemented.`);
+        console.log(`Action ${action} is not yet implemented.`);
       }
     }
   }
@@ -913,7 +940,7 @@ var SkillExecutor = class {
     }
     return rendered;
   }
-  async executePipeline(skill, initialContext, activeView) {
+  async executePipeline(skill, initialContext, activeView, execCtx, textToReplaceStart) {
     var _a, _b, _c;
     const pipelineContext = { ...initialContext };
     const totalSteps = ((_a = skill.steps) == null ? void 0 : _a.length) || 0;
@@ -954,11 +981,11 @@ var SkillExecutor = class {
         }
       } else if (step.action === "insert_below") {
         const currentView = activeView || this.app.workspace.getActiveViewOfType(import_obsidian3.MarkdownView);
-        await this.executeInsert(renderedPrompt, currentView);
+        await this.executeInsert(renderedPrompt, currentView, execCtx);
         stepResult = "[Inserted in Editor]";
       } else if (step.action === "replace") {
         const currentView = activeView || this.app.workspace.getActiveViewOfType(import_obsidian3.MarkdownView);
-        await this.executeReplace(renderedPrompt, currentView);
+        await this.executeReplace(renderedPrompt, currentView, execCtx, i === 0 ? textToReplaceStart : void 0);
         stepResult = "[Replaced in Editor]";
       } else {
         console.warn(`Unknown action ${step.action} in step ${step.id}`);
@@ -982,31 +1009,39 @@ var SkillExecutor = class {
       }
     }
   }
-  async executeReplace(prompt, activeView) {
-    if (!activeView) {
+  async executeReplace(prompt, activeView, execCtx, textToReplaceStart) {
+    const editor = (execCtx == null ? void 0 : execCtx.editor) || (activeView == null ? void 0 : activeView.editor);
+    if (!editor) {
       new import_obsidian3.Notice("No active markdown view found for replace action.");
       return;
     }
-    const editor = activeView.editor;
     new import_obsidian3.Notice("AI is thinking (replace)...", 3e3);
     try {
       const aiResponse = await this.llm.ask(prompt);
-      editor.replaceSelection(aiResponse);
+      if ((execCtx == null ? void 0 : execCtx.source) === "slash" && execCtx.triggerRange) {
+        const startPos = textToReplaceStart || execCtx.triggerRange.start;
+        editor.replaceRange(aiResponse, startPos, execCtx.triggerRange.end);
+      } else {
+        editor.replaceSelection(aiResponse);
+      }
       new import_obsidian3.Notice("Content replaced.");
     } catch (error) {
       console.error("Replace LLM execution failed:", error);
       new import_obsidian3.Notice("AI request failed. Check console or API key.");
     }
   }
-  async executeInsert(prompt, activeView) {
-    if (!activeView) {
+  async executeInsert(prompt, activeView, execCtx) {
+    const editor = (execCtx == null ? void 0 : execCtx.editor) || (activeView == null ? void 0 : activeView.editor);
+    if (!editor) {
       new import_obsidian3.Notice("No active markdown view found for insert action.");
       return;
     }
-    const editor = activeView.editor;
     new import_obsidian3.Notice("AI is thinking (insert)...", 3e3);
     try {
       const aiResponse = await this.llm.ask(prompt);
+      if ((execCtx == null ? void 0 : execCtx.source) === "slash" && execCtx.triggerRange) {
+        editor.replaceRange("", execCtx.triggerRange.start, execCtx.triggerRange.end);
+      }
       const cursor = editor.getCursor();
       const textToInsert = `
 ${aiResponse}
@@ -1328,11 +1363,74 @@ User Question: ${prompt}`;
   }
 };
 
+// src/slashSuggest.ts
+var import_obsidian6 = require("obsidian");
+var DeepSeekSlashSuggest = class extends import_obsidian6.EditorSuggest {
+  constructor(app, plugin) {
+    super(app);
+    __publicField(this, "plugin");
+    this.plugin = plugin;
+  }
+  onTrigger(cursor, editor, file) {
+    const line = editor.getLine(cursor.line);
+    const sub = line.substring(0, cursor.ch);
+    const trigger = this.plugin.settings.slashCommandTrigger || "/ds";
+    const triggerMatch = sub.match(new RegExp(`(?:^|[\\s\\.,!?;\uFF0C\u3002\uFF01\uFF1F\uFF1B\uFF1A\uFF1A])(${this.escapeRegExp(trigger)})(?:\\s+(.*))?$`, "i"));
+    if (!triggerMatch) return null;
+    return {
+      start: { line: cursor.line, ch: triggerMatch.index + (triggerMatch[0].startsWith(" ") ? 1 : 0) },
+      end: cursor,
+      query: triggerMatch[2] || ""
+    };
+  }
+  getSuggestions(context) {
+    const query = (context.query || "").toLowerCase();
+    let skills = Array.from(this.plugin.skillManager.skills.values());
+    if (query) {
+      skills = skills.filter(
+        (skill) => skill.name.toLowerCase().includes(query) || skill.id && skill.id.toLowerCase().includes(query)
+      );
+    }
+    if (!query && this.plugin.settings.slashCommandDefaultAction && this.plugin.settings.slashCommandDefaultAction !== "none") {
+      const defaultSkillIdx = skills.findIndex((s) => s.id === this.plugin.settings.slashCommandDefaultAction);
+      if (defaultSkillIdx !== -1) {
+        const defaultSkill = skills.splice(defaultSkillIdx, 1)[0];
+        skills.unshift(defaultSkill);
+      }
+    }
+    return skills;
+  }
+  renderSuggestion(skill, el) {
+    el.createEl("span", { text: `${skill.icon || "bot"} ${skill.name}` });
+    if (skill.action) {
+      el.createEl("small", { text: skill.action, cls: "slash-skill-action", attr: { style: "opacity: 0.6; font-size: 0.8em; margin-left: 8px;" } });
+    }
+  }
+  selectSuggestion(skill, evt) {
+    if (!this.context) return;
+    const editor = this.context.editor;
+    const start = this.context.start;
+    const end = this.context.end;
+    const execCtx = {
+      editor,
+      source: "slash",
+      triggerRange: { start, end }
+    };
+    void this.plugin.skillManager.executor.execute(skill, execCtx).catch((e) => {
+      console.error(e);
+      new import_obsidian6.Notice(`Error executing slash command: ${e.message}`);
+    });
+  }
+  escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+};
+
 // src/main.ts
-var import_obsidian8 = require("obsidian");
+var import_obsidian9 = require("obsidian");
 
 // src/telegramService.ts
-var import_obsidian6 = require("obsidian");
+var import_obsidian7 = require("obsidian");
 var TelegramService = class {
   constructor(plugin) {
     __publicField(this, "plugin");
@@ -1366,7 +1464,7 @@ var TelegramService = class {
     try {
       const offset = tgLastUpdateId + 1;
       const url = `https://api.telegram.org/bot${tgBotToken}/getUpdates?offset=${offset}`;
-      const response = await (0, import_obsidian6.requestUrl)({ url, method: "GET" });
+      const response = await (0, import_obsidian7.requestUrl)({ url, method: "GET" });
       if (response.status !== 200) {
         throw new Error(`Telegram API returned ${response.status}`);
       }
@@ -1437,7 +1535,7 @@ ${content}
 `;
     try {
       let file = vault.getAbstractFileByPath(path);
-      if (file instanceof import_obsidian6.TFile) {
+      if (file instanceof import_obsidian7.TFile) {
         await vault.process(file, (data) => data + formattedEntry);
       } else {
         const pathParts = path.split("/");
@@ -1450,12 +1548,12 @@ ${content}
         await vault.create(path, `# Telegram Notes
 ${formattedEntry}`);
       }
-      new import_obsidian6.Notice(`Telegram message captured to ${path}`);
+      new import_obsidian7.Notice(`Telegram message captured to ${path}`);
       this.plugin.logger.log("system", "system", `Appended Telegram message to ${path}`);
     } catch (error) {
       console.error("Failed to append message to vault:", error);
       this.plugin.logger.log("system", "system", `Failed to append to vault: ${error instanceof Error ? error.message : String(error)}`);
-      new import_obsidian6.Notice(`Failed to save Telegram message: ${error instanceof Error ? error.message : String(error)}`);
+      new import_obsidian7.Notice(`Failed to save Telegram message: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 };
@@ -1474,6 +1572,8 @@ var DEFAULT_SETTINGS = {
   model: "deepseek-chat",
   skillsDirectory: "DeepSeek-Skills",
   logDirectory: "DeepSeek-Logs",
+  slashCommandTrigger: "/ds",
+  slashCommandDefaultAction: "none",
   tgBotToken: "",
   tgChatId: "",
   tgPollingInterval: 60,
@@ -1482,7 +1582,7 @@ var DEFAULT_SETTINGS = {
   tgPromptTemplate: "\u4F60\u662F\u4E00\u4E2A\u77E5\u8BC6\u5E93\u52A9\u624B\u3002\u4EE5\u4E0B\u662F\u7528\u6237\u5728\u6237\u5916\u901A\u8FC7\u624B\u673A\u3010\u8BED\u97F3\u8F6C\u6587\u5B57\u3011\u53D1\u6765\u7684\u788E\u7247\u8BB0\u5F55\uFF0C\u53EF\u80FD\u5305\u542B\u540C\u97F3\u9519\u522B\u5B57\u548C\u4E2D\u82F1\u5939\u6742\u9519\u8BEF\u3002\u8BF7\u4FEE\u590D\u9519\u8BEF\u3001\u53BB\u9664\u53E3\u8BED\u5E9F\u8BDD\uFF0C\u5E76\u63D0\u70BC\u4E3A\u7ED3\u6784\u6E05\u6670\u7684 Markdown \u683C\u5F0F\uFF08\u53EF\u9002\u5EA6\u52A0\u7C97\u6216\u5217\u70B9\uFF09\u3002\u53EA\u8FD4\u56DE\u5904\u7406\u540E\u7684\u5185\u5BB9\uFF0C\u4E0D\u8981\u56DE\u590D\u5176\u4ED6\u5E9F\u8BDD\u3002\u539F\u6587\uFF1A\n{{tg_message}}",
   tgLastUpdateId: 0
 };
-var DeepSeekPlugin = class extends import_obsidian7.Plugin {
+var DeepSeekPlugin = class extends import_obsidian8.Plugin {
   constructor() {
     super(...arguments);
     __publicField(this, "settings", DEFAULT_SETTINGS);
@@ -1506,6 +1606,7 @@ var DeepSeekPlugin = class extends import_obsidian7.Plugin {
       void this.skillManager.loadSkills().catch(console.error);
     });
     this.hoverView = new DeepSeekHoverView(this.app, this);
+    this.registerEditorSuggest(new DeepSeekSlashSuggest(this.app, this));
     this.addCommand({
       id: "deepseek-hover-ai",
       name: "Hover AI Chat",
@@ -1563,7 +1664,7 @@ var DeepSeekPlugin = class extends import_obsidian7.Plugin {
     await this.saveData(this.settings);
   }
 };
-var DeepSeekSettingTab = class extends import_obsidian8.PluginSettingTab {
+var DeepSeekSettingTab = class extends import_obsidian9.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     __publicField(this, "plugin");
@@ -1572,8 +1673,8 @@ var DeepSeekSettingTab = class extends import_obsidian8.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    new import_obsidian8.Setting(containerEl).setName("Deepseek").setHeading();
-    new import_obsidian8.Setting(containerEl).setName("AI Provider").setDesc("Select the AI service provider.").addDropdown((drop) => drop.addOption("deepseek", "DeepSeek").addOption("kimi", "Kimi (Moonshot)").addOption("openai", "OpenAI").addOption("custom", "Custom").setValue(this.plugin.settings.provider).onChange(async (value) => {
+    new import_obsidian9.Setting(containerEl).setName("Deepseek").setHeading();
+    new import_obsidian9.Setting(containerEl).setName("AI Provider").setDesc("Select the AI service provider.").addDropdown((drop) => drop.addOption("deepseek", "DeepSeek").addOption("kimi", "Kimi (Moonshot)").addOption("openai", "OpenAI").addOption("custom", "Custom").setValue(this.plugin.settings.provider).onChange(async (value) => {
       this.plugin.settings.provider = value;
       if (value === "deepseek") {
         this.plugin.settings.apiUrl = "https://api.deepseek.com";
@@ -1588,41 +1689,56 @@ var DeepSeekSettingTab = class extends import_obsidian8.PluginSettingTab {
       await this.plugin.saveSettings();
       this.display();
     }));
-    new import_obsidian8.Setting(containerEl).setName("API key").setDesc(`Enter your API key for ${this.plugin.settings.provider}.`).addText((text) => text.setValue(this.plugin.settings.apiKeys[this.plugin.settings.provider] || "").onChange((value) => {
+    new import_obsidian9.Setting(containerEl).setName("API key").setDesc(`Enter your API key for ${this.plugin.settings.provider}.`).addText((text) => text.setValue(this.plugin.settings.apiKeys[this.plugin.settings.provider] || "").onChange((value) => {
       this.plugin.settings.apiKeys[this.plugin.settings.provider] = value;
       if (this.plugin.settings.provider === "deepseek") {
         this.plugin.settings.apiKey = value;
       }
       void this.plugin.saveSettings().catch(console.error);
     }));
-    new import_obsidian8.Setting(containerEl).setName("API URL").setDesc("Endpoint for the API. (Will auto-update if Provider is changed)").addText((text) => text.setValue(this.plugin.settings.apiUrl).onChange((value) => {
+    new import_obsidian9.Setting(containerEl).setName("API URL").setDesc("Endpoint for the API. (Will auto-update if Provider is changed)").addText((text) => text.setValue(this.plugin.settings.apiUrl).onChange((value) => {
       this.plugin.settings.apiUrl = value;
       void this.plugin.saveSettings().catch(console.error);
     }));
-    new import_obsidian8.Setting(containerEl).setName("Model").setDesc("Model to use.").addText((text) => text.setValue(this.plugin.settings.model).onChange((value) => {
+    new import_obsidian9.Setting(containerEl).setName("Model").setDesc("Model to use.").addText((text) => text.setValue(this.plugin.settings.model).onChange((value) => {
       this.plugin.settings.model = value;
       void this.plugin.saveSettings().catch(console.error);
     }));
-    new import_obsidian8.Setting(containerEl).setName("Skills directory").setDesc("Folder where your Markdown skills are stored (e.g. DeepSeek-Skills).").addText((text) => text.setValue(this.plugin.settings.skillsDirectory).onChange((value) => {
+    new import_obsidian9.Setting(containerEl).setName("Skills directory").setDesc("Folder where your Markdown skills are stored (e.g. DeepSeek-Skills).").addText((text) => text.setValue(this.plugin.settings.skillsDirectory).onChange((value) => {
       this.plugin.settings.skillsDirectory = value;
       void this.plugin.skillManager.loadSkills().catch(console.error);
     }));
-    new import_obsidian8.Setting(containerEl).setName("Log export directory").setDesc("Folder where execution logs will be exported (e.g. DeepSeek-Logs).").addText((text) => text.setValue(this.plugin.settings.logDirectory).onChange(async (value) => {
+    new import_obsidian9.Setting(containerEl).setName("Log export directory").setDesc("Folder where execution logs will be exported (e.g. DeepSeek-Logs).").addText((text) => text.setValue(this.plugin.settings.logDirectory).onChange(async (value) => {
       this.plugin.settings.logDirectory = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian8.Setting(containerEl).setName("Telegram Sync Settings").setHeading();
-    new import_obsidian8.Setting(containerEl).setName("Telegram Bot Token").setDesc("Token from @BotFather.").addText((text) => text.setPlaceholder("Enter your bot token").setValue(this.plugin.settings.tgBotToken).onChange(async (value) => {
+    new import_obsidian9.Setting(containerEl).setName("Slash Commands").setHeading();
+    new import_obsidian9.Setting(containerEl).setName("Slash Command Trigger").setDesc("Trigger string to show the Light Skills menu in the editor.").addText((text) => text.setValue(this.plugin.settings.slashCommandTrigger).onChange(async (value) => {
+      this.plugin.settings.slashCommandTrigger = value;
+      await this.plugin.saveSettings();
+    }));
+    new import_obsidian9.Setting(containerEl).setName("Default Action (Enter instantly)").setDesc("If you select a skill here, typing the trigger and hitting Enter will immediately execute this skill instead of showing the menu.").addDropdown((drop) => {
+      drop.addOption("none", "Show Menu Only (Default)");
+      this.plugin.skillManager.skills.forEach((skill) => {
+        drop.addOption(skill.id, skill.name);
+      });
+      drop.setValue(this.plugin.settings.slashCommandDefaultAction || "none").onChange(async (value) => {
+        this.plugin.settings.slashCommandDefaultAction = value;
+        await this.plugin.saveSettings();
+      });
+    });
+    new import_obsidian9.Setting(containerEl).setName("Telegram Sync Settings").setHeading();
+    new import_obsidian9.Setting(containerEl).setName("Telegram Bot Token").setDesc("Token from @BotFather.").addText((text) => text.setPlaceholder("Enter your bot token").setValue(this.plugin.settings.tgBotToken).onChange(async (value) => {
       this.plugin.settings.tgBotToken = value;
       await this.plugin.saveSettings();
       this.plugin.startPolling();
     }));
-    new import_obsidian8.Setting(containerEl).setName("My Chat ID").setDesc("Whitelisted Chat ID to receive messages from.").addText((text) => text.setPlaceholder("Enter your Chat ID").setValue(this.plugin.settings.tgChatId).onChange(async (value) => {
+    new import_obsidian9.Setting(containerEl).setName("My Chat ID").setDesc("Whitelisted Chat ID to receive messages from.").addText((text) => text.setPlaceholder("Enter your Chat ID").setValue(this.plugin.settings.tgChatId).onChange(async (value) => {
       this.plugin.settings.tgChatId = value;
       await this.plugin.saveSettings();
       this.plugin.startPolling();
     }));
-    new import_obsidian8.Setting(containerEl).setName("Polling Interval (seconds)").setDesc("How often to check for new messages.").addText((text) => text.setValue(String(this.plugin.settings.tgPollingInterval)).onChange(async (value) => {
+    new import_obsidian9.Setting(containerEl).setName("Polling Interval (seconds)").setDesc("How often to check for new messages.").addText((text) => text.setValue(String(this.plugin.settings.tgPollingInterval)).onChange(async (value) => {
       const num = parseInt(value);
       if (!isNaN(num) && num > 0) {
         this.plugin.settings.tgPollingInterval = num;
@@ -1630,15 +1746,15 @@ var DeepSeekSettingTab = class extends import_obsidian8.PluginSettingTab {
         this.plugin.startPolling();
       }
     }));
-    new import_obsidian8.Setting(containerEl).setName("Target Note Path").setDesc("Path to the Markdown file where notes will be saved (e.g. Inbox/TG-Notes.md).").addText((text) => text.setValue(this.plugin.settings.tgSavePath).onChange(async (value) => {
+    new import_obsidian9.Setting(containerEl).setName("Target Note Path").setDesc("Path to the Markdown file where notes will be saved (e.g. Inbox/TG-Notes.md).").addText((text) => text.setValue(this.plugin.settings.tgSavePath).onChange(async (value) => {
       this.plugin.settings.tgSavePath = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian8.Setting(containerEl).setName("Enable DeepSeek Processing").setDesc("Use AI to format and correct the incoming messages.").addToggle((toggle) => toggle.setValue(this.plugin.settings.tgAiProcessing).onChange(async (value) => {
+    new import_obsidian9.Setting(containerEl).setName("Enable DeepSeek Processing").setDesc("Use AI to format and correct the incoming messages.").addToggle((toggle) => toggle.setValue(this.plugin.settings.tgAiProcessing).onChange(async (value) => {
       this.plugin.settings.tgAiProcessing = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian8.Setting(containerEl).setName("Prompt Template").setDesc("Template for AI processing. Use {{tg_message}} as placeholder.").addTextArea((text) => text.setValue(this.plugin.settings.tgPromptTemplate).onChange(async (value) => {
+    new import_obsidian9.Setting(containerEl).setName("Prompt Template").setDesc("Template for AI processing. Use {{tg_message}} as placeholder.").addTextArea((text) => text.setValue(this.plugin.settings.tgPromptTemplate).onChange(async (value) => {
       this.plugin.settings.tgPromptTemplate = value;
       await this.plugin.saveSettings();
     }));

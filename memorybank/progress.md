@@ -36,9 +36,13 @@
 - [x] Optimized `.gitignore` for better development workflow.
 - [x] Synchronized version identifiers across all config files.
 
-## Current Status
-System is stable. Multi-step workflows, Sidebar Chat, and the new **Hover UI** are fully functional with premium CSS styling. 
+### 7. Slash Commands (v1.7.0)
+- [x] In-place native Slash Command trigger (`/ds`).
+- [x] Smart Context Sensing (Line and Paragraph level).
+- [x] Custom default trigger action (Instantly hitting Enter).
 
+## Current Status
+System is stable. Multi-step workflows, Sidebar Chat, the **Hover UI**, and the new **Slash Commands** are fully functional, providing a zero-friction editing experience.
 
 ## Next Steps 🚀
 - [ ] Support more variables (date, path, props).

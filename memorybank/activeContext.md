@@ -1,17 +1,15 @@
 # Active Context
 
 ## Current Focus
-Improved the **Hover AI Chat (v1.6.1)** with better UX: immediate input clearing, scrollable context, and expanded output area.
-
+Implemented **Slash Commands (v1.7.0)** for in-place text replacement, featuring smart paragraph-level context sensing and customizable trigger actions.
 
 ## Recent Changes
-- Implemented `streamAsk` in `LlmService` using native `fetch` API for real-time text streaming.
-- Added `DeepSeekHoverView` (`src/hoverView.ts`) for rendering context-aware floating UI.
-- Integrated Hover UI triggering via `Cmd+Shift+J` global hotkey.
-- Styled Hover UI with glassmorphism, making it movable and resizable.
-- Improved Hover UI UX: added instant feedback, scrollable context, and adaptive output height.
-- Released version **1.6.1** across `package.json`, `manifest.json`, and `versions.json`.
-- Previously: Released version **1.6.0** and implemented the core Hover UI feature.
+- Added `DeepSeekSlashSuggest` (`src/slashSuggest.ts`) extending `EditorSuggest`.
+- Upgraded `SkillExecutor` to intercept `slash` source events.
+- Rewrote `executeReplace` to replace the exact initial trigger range automatically.
+- Added intelligent upwards-scanning paragraph context extraction.
+- Released version **1.7.0** across all config files and docs.
+- Previously: Released version **1.6.1** improving Hover UX and **1.6.0** with Hover UI.
 
 
 ## Contextual Notes
@@ -22,4 +20,4 @@ Improved the **Hover AI Chat (v1.6.1)** with better UX: immediate input clearing
 
 ## Immediate Tasks
 - No critical bugs remaining. 
-- Awaiting user feedback on "Professional Translation" and "Skill Architect" demo skills.
+- Awaiting user feedback on newly added inline Slash Commands (`/ds`).

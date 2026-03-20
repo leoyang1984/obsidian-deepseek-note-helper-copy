@@ -1,8 +1,15 @@
-import { App, MarkdownView, Notice, WorkspaceLeaf } from 'obsidian';
+import { App, MarkdownView, Notice, WorkspaceLeaf, Editor, EditorPosition } from 'obsidian';
 import DeepSeekPlugin from './main';
 import { DeepSeekView, DEEPSEEK_VIEW_TYPE } from './view';
 import { Skill } from './skillManager';
 import { LlmService } from './llmService';
+
+export interface ExecuteContext {
+    editor?: Editor;
+    source?: 'slash' | 'command';
+    triggerRange?: { start: EditorPosition, end: EditorPosition };
+}
+
 
 export class SkillExecutor {
     plugin: DeepSeekPlugin;
@@ -15,14 +22,46 @@ export class SkillExecutor {
         this.llm = new LlmService(plugin);
     }
 
-    async execute(skill: Skill) {
+    async execute(skill: Skill, execCtx?: ExecuteContext) {
         this.plugin.logger.log('pipeline', 'system', `Starting execution of skill: ${skill.name}`, { skill });
         const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
         const activeFile = this.app.workspace.getActiveFile();
+        const editor = execCtx?.editor || activeView?.editor;
         
+        let selection = editor ? editor.getSelection() : '';
+        let textToReplaceStart: EditorPosition | undefined;
+
+        // If from slash command and no selection (typical), extract context from the block
+        if (execCtx?.source === 'slash' && execCtx.triggerRange && editor && !selection) {
+             const startLine = execCtx.triggerRange.start.line;
+             const lineStr = editor.getLine(startLine);
+             let blockLines: string[] = [];
+             
+             // 1. Get current line content before the slash
+             const currentLinePre = lineStr.substring(0, execCtx.triggerRange.start.ch).trim();
+             
+             // 2. If current line has content, we use it. 
+             // 3. IF current line is empty before slash, we look UP to find the whole paragraph.
+             if (currentLinePre) {
+                 selection = currentLinePre;
+                 textToReplaceStart = { line: startLine, ch: 0 }; 
+             } else {
+                 // Look up for non-empty lines (the paragraph)
+                 let scanLine = startLine - 1;
+                 while (scanLine >= 0) {
+                     const content = editor.getLine(scanLine).trim();
+                     if (!content) break; // Found a break
+                     blockLines.unshift(content);
+                     scanLine--;
+                 }
+                 selection = blockLines.join('\n');
+                 textToReplaceStart = { line: scanLine + 1, ch: 0 };
+             }
+        }
+
         // 1. Common Context
         const initialContext: Record<string, string> = {
-            selection: activeView ? activeView.editor.getSelection() : '',
+            selection: selection,
             title: activeFile ? activeFile.basename : '',
             content: activeFile ? await this.app.vault.cachedRead(activeFile) : ''
         };
@@ -39,16 +78,22 @@ export class SkillExecutor {
             await this.executePipeline(skill, initialContext, activeView);
         } else {
             // Standard Single Step
+            // Override action if it's a slash command and no action specified, default to replace
+            let action = skill.action;
+            if (execCtx?.source === 'slash' && action !== 'insert_below' && action !== 'to_chat') {
+                 action = 'replace';
+            }
+
             let prompt = this.renderTemplate(skill.template, initialContext);
             
-            if (skill.action === 'to_chat') {
+            if (action === 'to_chat') {
                 await this.executeToChat(prompt);
-            } else if (skill.action === 'replace') {
-                await this.executeReplace(prompt, activeView);
-            } else if (skill.action === 'insert_below') {
-                await this.executeInsert(prompt, activeView);
+            } else if (action === 'replace') {
+                await this.executeReplace(prompt, activeView, execCtx, textToReplaceStart);
+            } else if (action === 'insert_below') {
+                await this.executeInsert(prompt, activeView, execCtx);
             } else {
-                console.log(`Action ${skill.action} is not yet implemented.`);
+                console.log(`Action ${action} is not yet implemented.`);
             }
         }
     }
@@ -76,7 +121,7 @@ export class SkillExecutor {
         return rendered;
     }
 
-    private async executePipeline(skill: Skill, initialContext: Record<string, string>, activeView: MarkdownView | null) {
+    private async executePipeline(skill: Skill, initialContext: Record<string, string>, activeView: MarkdownView | null, execCtx?: ExecuteContext, textToReplaceStart?: EditorPosition) {
         const pipelineContext = { ...initialContext };
         const totalSteps = skill.steps?.length || 0;
 
@@ -124,11 +169,13 @@ export class SkillExecutor {
             } else if (step.action === 'insert_below') {
                 // Re-fetch view in case it changed during pause
                 const currentView = activeView || this.app.workspace.getActiveViewOfType(MarkdownView);
-                await this.executeInsert(renderedPrompt, currentView);
+                await this.executeInsert(renderedPrompt, currentView, execCtx);
                 stepResult = '[Inserted in Editor]';
             } else if (step.action === 'replace') {
                 const currentView = activeView || this.app.workspace.getActiveViewOfType(MarkdownView);
-                await this.executeReplace(renderedPrompt, currentView);
+                // In a pipeline, replacing the original trigger text might be tricky for later steps. 
+                // We will just pass the textToReplaceStart so the first replace eats the trigger.
+                await this.executeReplace(renderedPrompt, currentView, execCtx, i === 0 ? textToReplaceStart : undefined);
                 stepResult = '[Replaced in Editor]';
             } else {
                 console.warn(`Unknown action ${step.action} in step ${step.id}`);
@@ -164,18 +211,24 @@ export class SkillExecutor {
         }
     }
 
-    private async executeReplace(prompt: string, activeView: MarkdownView | null) {
-        if (!activeView) {
+    private async executeReplace(prompt: string, activeView: MarkdownView | null, execCtx?: ExecuteContext, textToReplaceStart?: EditorPosition) {
+        const editor = execCtx?.editor || activeView?.editor;
+        if (!editor) {
             new Notice("No active markdown view found for replace action.");
             return;
         }
         
-        const editor = activeView.editor;
         new Notice("AI is thinking (replace)...", 3000);
         
         try {
             const aiResponse = await this.llm.ask(prompt);
-            editor.replaceSelection(aiResponse);
+            
+            if (execCtx?.source === 'slash' && execCtx.triggerRange) {
+                const startPos = textToReplaceStart || execCtx.triggerRange.start;
+                editor.replaceRange(aiResponse, startPos, execCtx.triggerRange.end);
+            } else {
+                editor.replaceSelection(aiResponse);
+            }
             new Notice("Content replaced.");
         } catch (error) {
             console.error("Replace LLM execution failed:", error);
@@ -183,17 +236,23 @@ export class SkillExecutor {
         }
     }
 
-    private async executeInsert(prompt: string, activeView: MarkdownView | null) {
-        if (!activeView) {
+    private async executeInsert(prompt: string, activeView: MarkdownView | null, execCtx?: ExecuteContext) {
+        const editor = execCtx?.editor || activeView?.editor;
+        if (!editor) {
             new Notice("No active markdown view found for insert action.");
             return;
         }
 
-        const editor = activeView.editor;
         new Notice("AI is thinking (insert)...", 3000);
         
         try {
             const aiResponse = await this.llm.ask(prompt);
+            
+            if (execCtx?.source === 'slash' && execCtx.triggerRange) {
+                // If slash command, first remove the slash command trigger text
+                editor.replaceRange('', execCtx.triggerRange.start, execCtx.triggerRange.end);
+            }
+
             const cursor = editor.getCursor();
             
             // Ensure there's a newline before the inserted text if we aren't at the start of a line

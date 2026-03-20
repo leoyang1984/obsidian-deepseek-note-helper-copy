@@ -58,19 +58,24 @@ The plugin currently has completed its core context awareness, streaming interac
 - [ ] **Image-to-Code**
   One-click conversion of screenshots to Mermaid flowchart code or Markdown tables.
 
-### ⌨️ Phase 5: Deep Command Flow (Workflow Integration)
-- [ ] **Shortcut Keys and Slash Commands**
-  Support quick polishing/questioning in-place within the editor via `/deepseek`.
+## ✅ Phase 5: Deep Command Flow (Workflow Integration - Completed)
+- [x] **Shortcut Keys and Slash Commands**
+  Support quick polishing/questioning in-place within the editor via native `/ds` or other configured triggers, featuring smart context sensing.
 - [ ] **External Services Extension**
   Allow API integration to push notes to personal blogs or commit via Git.
 
-## ✅ Phase 7: Mobile Inbox (Telegram Sync - Completed)
+
+## ✅ Phase 6: Mobile Inbox (Telegram Sync - Completed)
 - [x] **Telegram Bot Polling Engine**: Integration with Telegram API for secure message retrieval.
 - [x] **Smart AI Refinement**: Automatic typo correction and Markdown formatting via DeepSeek.
 - [x] **Whitelist Security**: Chat ID filtering to prevent unauthorized access.
 - [x] **Background capture**: Seamlessly append incoming messages to local inbox notes.
 
-### 🧩 Future Exploration: Phase 5 and Beyond
+### 🧩 Future Exploration: Phase 7 and Beyond
+- [ ] **Phase 7: Local Logic & Multi-Agent Collaboration**
+  - **Local LLM Integration**: Support Ollama or LM Studio for 100% offline privacy projects.
+  - **Multi-Agent Orchestration**: Allow different "Skills" to communicate with each other autonomously.
+  - **Skill Marketplace**: A community platform to share and download "Light Skills" Markdown snippets.
 
 ---
 *This document is used for long-term thinking and planning. Welcome to iterate based on new pain points in daily use.*
@@ -125,19 +130,24 @@ The plugin currently has completed its core context awareness, streaming interac
 - [ ] **图片转代码 (Image-to-Code)**
   一键将截图转化为 Mermaid 流程图代码或 Markdown 表格。
 
-### ⌨️ 第五阶段：深度命令流 (Workflow Integration)
-- [ ] **快捷键与斜杠命令 (Slash Commands)**
-  支持在编辑器内通过 `/deepseek` 快速原地润色提问。
+## ✅ 第五阶段：深度命令流 (Workflow Integration - 已完成部分)
+- [x] **快捷键与斜杠命令 (Slash Commands)**
+  支持在编辑器内通过 `/ds` 原生建议菜单唤醒轻技能，实现快速原地润色和智能上下文捕获。
 - [ ] **外部服务扩展**
   允许通过 API 联动将笔记推送到个人博客或通过 Git 提交。
 
-## ✅ 第七阶段：移动端“闪念”收件箱 (Telegram 同步 - 已完成)
+
+## ✅ 第六阶段：移动端“闪念”收件箱 (Telegram 同步 - 已完成)
 - [x] **Telegram Bot 轮询引擎**：接入 Telegram API 实现安全的消息调取。
 - [x] **DeepSeek 智能润色**：自动修正语音转文字错别字并进行 Markdown 格式化。
 - [x] **白名单安全过滤**：基于 Chat ID 的权限校验，防止非法消息注入。
 - [x] **静默后台捕获**：无感同步至本地 Inbox 笔记中。
 
-### 🧩 未来探索：第五阶段及以后
+### 🧩 未来探索：第七阶段及以后
+- [ ] **第七阶段：本地逻辑与多代理协作**
+  - **本地大模型集成**：支持 Ollama / LM Studio 实现 100% 离线隐私项目。
+  - **多代理编排**：支持不同“技能 (Skills)”之间自主通信与协作。
+  - **技能市场**：用于分享和下载“轻技能”Markdown 脚本的社区平台。
 
 ---
 *此文档用于长期思考和规划。欢迎在日常使用中根据新痛点进行迭代。*

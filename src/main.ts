@@ -10,6 +10,8 @@ interface DeepSeekSettings {
     model: string;
     skillsDirectory: string;
     logDirectory: string;
+    slashCommandTrigger: string;
+    slashCommandDefaultAction: string;
     // Telegram Settings
     tgBotToken: string;
     tgChatId: string;
@@ -33,6 +35,8 @@ const DEFAULT_SETTINGS: DeepSeekSettings = {
     model: 'deepseek-chat',
     skillsDirectory: 'DeepSeek-Skills',
     logDirectory: 'DeepSeek-Logs',
+    slashCommandTrigger: '/ds',
+    slashCommandDefaultAction: 'none',
     tgBotToken: '',
     tgChatId: '',
     tgPollingInterval: 60,
@@ -44,13 +48,14 @@ const DEFAULT_SETTINGS: DeepSeekSettings = {
 
 import { SkillManager } from './skillManager';
 import { DeepSeekHoverView } from './hoverView';
+import { DeepSeekSlashSuggest } from './slashSuggest';
 
 export default class DeepSeekPlugin extends Plugin {
     settings: DeepSeekSettings = DEFAULT_SETTINGS;
     skillManager!: SkillManager;
     logger: ExecutionLogger = new ExecutionLogger();
     telegramService!: TelegramService;
-    hoverView: DeepSeekHoverView;
+    hoverView!: DeepSeekHoverView;
 
     async onload() {
         await this.loadSettings();
@@ -74,6 +79,9 @@ export default class DeepSeekPlugin extends Plugin {
 
         // Initialize Hover View
         this.hoverView = new DeepSeekHoverView(this.app, this);
+
+        // Register Slash Suggest
+        this.registerEditorSuggest(new DeepSeekSlashSuggest(this.app, this));
 
         // Add Hover Command
         this.addCommand({
@@ -248,6 +256,33 @@ class DeepSeekSettingTab extends PluginSettingTab {
                     this.plugin.settings.logDirectory = value;
                     await this.plugin.saveSettings();
                 }));
+
+        new Setting(containerEl).setName('Slash Commands').setHeading();
+
+        new Setting(containerEl)
+            .setName('Slash Command Trigger')
+            .setDesc('Trigger string to show the Light Skills menu in the editor.')
+            .addText(text => text
+                .setValue(this.plugin.settings.slashCommandTrigger)
+                .onChange(async (value) => {
+                    this.plugin.settings.slashCommandTrigger = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('Default Action (Enter instantly)')
+            .setDesc('If you select a skill here, typing the trigger and hitting Enter will immediately execute this skill instead of showing the menu.')
+            .addDropdown(drop => {
+                drop.addOption('none', 'Show Menu Only (Default)');
+                this.plugin.skillManager.skills.forEach(skill => {
+                    drop.addOption(skill.id, skill.name);
+                });
+                drop.setValue(this.plugin.settings.slashCommandDefaultAction || 'none')
+                    .onChange(async (value) => {
+                        this.plugin.settings.slashCommandDefaultAction = value;
+                        await this.plugin.saveSettings();
+                    });
+            });
 
         new Setting(containerEl).setName('Telegram Sync Settings').setHeading();
 

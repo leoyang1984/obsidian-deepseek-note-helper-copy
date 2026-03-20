@@ -36,7 +36,13 @@ The latest version introduces **Light Skills**, a Markdown-based DSL that allows
 - **Real-Time Streaming**: Watch responses stream in instantly.
 - **Premium UX**: Draggable, resizable (CSS-based), glassmorphism design, and one-click copy button.
 
-#### 1. 🤖 Multi-Provider Support (DeepSeek, Kimi, etc.)
+#### 2. 🪄 Slash Command (v1.7.0)
+- **Immediate Inline Editing**: Type `/ds` directly in the editor to pop up a native menu of your Light Skills. 
+- **In-Place Replacement**: Seamlessly translate, polish, or generate text right where your cursor is, without opening any side panels.
+- **Smart Context Sensing**: The AI intelligently captures your sentence or the entire preceding paragraph if triggered on an empty line.
+- **Default Action**: Set your favorite skill to trigger instantly when you press `Enter` after `/ds`.
+
+#### 3. 🤖 Multi-Provider Support (DeepSeek, Kimi, etc.)
 - Supports any OpenAI-compatible API. Native optimizations for **DeepSeek** and **Kimi**.
 - Switch models seamlessly in settings to balance speed, cost, and reasoning power.
 
@@ -49,10 +55,10 @@ The latest version introduces **Light Skills**, a Markdown-based DSL that allows
 - **Selection Focus**: Highlight text in the editor, and the AI will lock onto it, even if you navigate away.
 - **Bidirectional Link Resolution**: AI "follows the trail" of `[[Links]]`, reading linked notes to provide comprehensive, context-aware answers.
 
-#### 4. 🛠️ Skill Architect (AI Metadata Generator)
+#### 5. 🛠️ Skill Architect (AI Metadata Generator)
 - Use our built-in **Skill Architect** pipeline to help you *generate new skills*. Just describe what you want the AI to do, and it will write the Markdown DSL for you.
 
-#### 5. 📨 Telegram "Inbox" Synchronization
+#### 6. 📨 Telegram "Inbox" Synchronization
 - **Mobile Capture**: Send text or voice-to-text messages to your dedicated Telegram Bot while on the go.
 - **AI Refinement**: Automatically correct typos, remove filler words, and format into structured Markdown using DeepSeek.
 - **Auto-Sync**: Background polling ensures your "Inbox" in Obsidian is always up-to-date.
@@ -80,6 +86,7 @@ This project is licensed under a **Custom Non-Commercial License**. Commercial u
 
 ### 📝 Changelog
 
+- **v1.7.0 (2026-03-20)**: Added native **Slash Command (`/ds`)** system for in-place text replacement, with intelligent paragraph context sensing and customizable default trigger actions.
 - **v1.6.1 (2026-03-19)**: Improved Hover UX with immediate input clearing, scrollable context area, and maximized output display.
 - **v1.6.0 (2026-03-18)**: Added **Hover AI Chat** with real-time streaming, movable/resizable floating UI, and immediate context-awareness.
 - **v1.5.1 (2026-03-17)**: Maintenance release. Cleaned up repository and optimized Git synchronization rules.
@@ -101,14 +108,20 @@ This project is licensed under a **Custom Non-Commercial License**. Commercial u
 
 ### 🚀 核心亮点
 
-#### 1. 🔍 划词浮窗 AI (v1.6.1 全新特性)
+#### 1. 🔍 划词浮窗 AI (v1.6.1)
 - **即时响应**：在编辑器中选中任意文本，按下 `Cmd+Shift+J` (Mac) / `Ctrl+Shift+J` (Win) 即可随时唤起 AI 对话。
 - **沉浸式左侧边栏布局**：浮窗默认以 40% 宽度、95% 高度吸附于屏幕左侧。既保证了充足的问答阅读空间，又完全不遮挡右侧的原笔记。
 - **上下文感知**：浮窗会锁定您选中的文本，并在界面上方保留视觉反馈，让提问更有针对性。
 - **流式输出**：支持打字机效果的实时进度渲染，告别干等。
 - **极致体验**：支持拖拽移动、支持右下角拉伸大小，提供一键复制按钮与毛玻璃质感 UI。
 
-#### 2. 🤖 多模型支持 (DeepSeek, Kimi 等)
+#### 2. 🪄 斜杠命令 (Slash Command - v1.7.0)
+- **无感行内编辑**：在编辑器中随时输入 `/ds` 即可呼出你的“轻技能”快捷菜单。
+- **原地替换交互**：直接在光标处为你完成翻译、润色或扩写，无需打开侧边栏，全程不打断心流。
+- **智能段落感应**：自动捕获同行的短句内容。如果在空行输入，AI 会自动向上溯源，抓取上一段完整的文字作为处理上下文。
+- **一键回车响应**：设置常用的默认技能后，输入 `/ds` 然后回车即可瞬间触发智能执行。
+
+#### 3. 🤖 多模型支持 (DeepSeek, Kimi 等)
 - 支持任何兼容 OpenAI 格式的 API。针对 **DeepSeek** 和 **Kimi** 进行了原生优化。
 - 在设置中自由切换，兼顾速度、成本与复杂推理能力。
 
@@ -121,10 +134,10 @@ This project is licensed under a **Custom Non-Commercial License**. Commercial u
 - **局部精准聚焦**：即便切换了页面，AI 也会牢牢记住您刚才高亮选中的内容。
 - **双向链接穿透**：AI 会顺着 `[[双向链接]]` 在后台阅读关联笔记，拒绝“盲人摸象”。
 
-#### 5. 🛠️ 技能架构师 (AI 辅助生成)
+#### 6. 🛠️ 技能架构师 (AI 辅助生成)
 - 内置 **Skill Architect** 管道。只要描述您的需求，AI 就会为您写好用于定义新技能的 Markdown 脚本。
 
-#### 6. 📨 Telegram “闪念”同步
+#### 7. 📨 Telegram “闪念”同步
 - **移动端捕获**：在外出时通过 Telegram Bot 发送文字或语音转文字，随时捕捉灵感。
 - **AI 自动润色**：利用 DeepSeek 自动修正口语错别字、去除废话，并转化为整齐的 Markdown。
 - **后台自动同步**：定时轮询确保您的 Obsidian “收件箱”始终保持最新状态。
@@ -152,6 +165,7 @@ This project is licensed under a **Custom Non-Commercial License**. Commercial u
 
 ### 📝 更新日志
 
+- **v1.7.0 (2026-03-20)**：新增 **Slash Command 斜杠命令 (`/ds`)**，支持深度行内交互菜单、原地文本即刻替换、智能段落上下文感应，极大提升“润色/翻译”心流体验。
 - **v1.6.1 (2026-03-19)**：优化浮窗交互体验，支持即时清空输入框、上下文区域滚动查看、以及输出区域全屏化显示。
 - **v1.6.0 (2026-03-18)**：新增**划词浮窗 AI Chat**，支持流式输出、拖拽移动与拉伸大小，显著提升行内交互体验。
 - **v1.5.1 (2026-03-17)**：日常维护。清理仓库冗余数据，优化 Git 同步规则。
