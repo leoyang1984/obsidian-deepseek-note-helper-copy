@@ -42,7 +42,7 @@ const DEFAULT_SETTINGS: DeepSeekSettings = {
     tgPollingInterval: 60,
     tgSavePath: 'Telegram-Notes.md',
     tgAiProcessing: true,
-    tgPromptTemplate: '你是一个知识库助手。以下是用户在户外通过手机【语音转文字】发来的碎片记录，可能包含同音错别字和中英夹杂错误。请修复错误、去除口语废话，并提炼为结构清晰的 Markdown 格式（可适度加粗或列点）。只返回处理后的内容，不要回复其他废话。原文：\n{{tg_message}}',
+    tgPromptTemplate: '你是一个专业的数字花园整理专家。用户通过 Telegram 发来的消息多为零碎的灵感、待办或语音转文字的草稿。\n请按以下规则处理：\n1. **修正错字**：依据语境纠正语音录入产生的同音错别字和中英混杂错误。\n2. **结构化**：将口语化的表达转化为清晰的书面逻辑，使用列表（-）或引用（>）格式。\n3. **保持原意**：保留内容的真实意图，不要改变用户的核心信息点。\n4. **输出限制**：只返回处理后的 Markdown 内容，禁止输出任何解释性废话。\n\n待处理原文：\n{{tg_message}}',
     tgLastUpdateId: 0
 }
 
