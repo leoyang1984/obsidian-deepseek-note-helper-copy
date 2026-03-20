@@ -76,6 +76,10 @@ The plugin currently has completed its core context awareness, streaming interac
   - **Local LLM Integration**: Support Ollama or LM Studio for 100% offline privacy projects.
   - **Multi-Agent Orchestration**: Allow different "Skills" to communicate with each other autonomously.
   - **Skill Marketplace**: A community platform to share and download "Light Skills" Markdown snippets.
+- [ ] **Canvas Integration**
+  Support spatial note reading and generation on Obsidian Canvas.
+- [ ] **Codebase Refactoring (UI Componentization)**
+  Refactor the monolithic `src/view.ts` (currently 34KB of native DOM manipulation) into modular UI components (e.g., using Svelte) to reduce maintenance cost and pave the way for complex features like a visual Pipeline builder.
 
 ---
 *This document is used for long-term thinking and planning. Welcome to iterate based on new pain points in daily use.*
@@ -129,6 +133,10 @@ The plugin currently has completed its core context awareness, streaming interac
   允许模型读取笔记中的 `![[图片]]`，分析流程图、手写笔记或图表内容。
 - [ ] **图片转代码 (Image-to-Code)**
   一键将截图转化为 Mermaid 流程图代码或 Markdown 表格。
+- [ ] **Canvas（白板）集成**
+  支持在白板模式下阅读多张卡片并生成新的可视化节点。
+- [ ] **核心 UI 重构 (侧边栏组件化)**
+  重构当前用于渲染右侧边栏的巨石文件 `src/view.ts` (34KB 的原生 DOM 操作)。计划深度引入 Svelte 以实现组件化，降低后期维护成本，并为未来增加“可视化 Pipeline 拖曳编辑器”等复杂交互做技术储备。
 
 ## ✅ 第五阶段：深度命令流 (Workflow Integration - 已完成部分)
 - [x] **快捷键与斜杠命令 (Slash Commands)**
