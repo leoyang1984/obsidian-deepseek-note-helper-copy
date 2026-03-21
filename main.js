@@ -924,7 +924,7 @@ var SkillExecutor = class {
       } else if (action === "insert_below") {
         await this.executeInsert(prompt, activeView, execCtx);
       } else if (action === "command") {
-        await this.executeCommand(skill.command || prompt);
+        await this.executeCommand(skill.command || prompt, activeView);
       } else {
         console.log(`Action ${action} is not yet implemented.`);
       }
@@ -990,7 +990,8 @@ var SkillExecutor = class {
         await this.executeReplace(renderedPrompt, currentView, execCtx, i === 0 ? textToReplaceStart : void 0);
         stepResult = "[Replaced in Editor]";
       } else if (step.action === "command") {
-        await this.executeCommand(step.command || renderedPrompt);
+        const commandView = activeView || this.app.workspace.getActiveViewOfType(import_obsidian3.MarkdownView);
+        await this.executeCommand(step.command || renderedPrompt, commandView);
         stepResult = `[Executed Command: ${step.command || renderedPrompt}]`;
       } else {
         console.warn(`Unknown action ${step.action} in step ${step.id}`);
@@ -1059,7 +1060,7 @@ ${aiResponse}
       new import_obsidian3.Notice("AI request failed. Check console or API key.");
     }
   }
-  async executeCommand(commandId) {
+  async executeCommand(commandId, activeView) {
     var _a;
     if (!commandId) {
       new import_obsidian3.Notice("Error: No command ID provided.");
@@ -1081,6 +1082,9 @@ ${aiResponse}
       }
     }
     if (command) {
+      if (activeView && activeView.editor) {
+        activeView.editor.focus();
+      }
       this.app.commands.executeCommandById(idToExecute);
       new import_obsidian3.Notice(`Successfully executed: ${command.name}`);
     } else {

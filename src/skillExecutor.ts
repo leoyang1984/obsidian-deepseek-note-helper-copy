@@ -93,7 +93,7 @@ export class SkillExecutor {
             } else if (action === 'insert_below') {
                 await this.executeInsert(prompt, activeView, execCtx);
             } else if (action === 'command') {
-                await this.executeCommand(skill.command || prompt);
+                await this.executeCommand(skill.command || prompt, activeView);
             } else {
                 console.log(`Action ${action} is not yet implemented.`);
             }
@@ -169,18 +169,16 @@ export class SkillExecutor {
                     return;
                 }
             } else if (step.action === 'insert_below') {
-                // Re-fetch view in case it changed during pause
                 const currentView = activeView || this.app.workspace.getActiveViewOfType(MarkdownView);
                 await this.executeInsert(renderedPrompt, currentView, execCtx);
                 stepResult = '[Inserted in Editor]';
             } else if (step.action === 'replace') {
                 const currentView = activeView || this.app.workspace.getActiveViewOfType(MarkdownView);
-                // In a pipeline, replacing the original trigger text might be tricky for later steps. 
-                // We will just pass the textToReplaceStart so the first replace eats the trigger.
                 await this.executeReplace(renderedPrompt, currentView, execCtx, i === 0 ? textToReplaceStart : undefined);
                 stepResult = '[Replaced in Editor]';
             } else if (step.action === 'command') {
-                await this.executeCommand(step.command || renderedPrompt);
+                const commandView = activeView || this.app.workspace.getActiveViewOfType(MarkdownView);
+                await this.executeCommand(step.command || renderedPrompt, commandView);
                 stepResult = `[Executed Command: ${step.command || renderedPrompt}]`;
             } else {
                 console.warn(`Unknown action ${step.action} in step ${step.id}`);
@@ -273,7 +271,7 @@ export class SkillExecutor {
         }
     }
 
-    private async executeCommand(commandId: string) {
+    private async executeCommand(commandId: string, activeView: MarkdownView | null) {
         if (!commandId) {
             new Notice("Error: No command ID provided.");
             return;
@@ -303,6 +301,10 @@ export class SkillExecutor {
         }
         
         if (command) {
+            // Ensure editor is focused before executing command (critical for Templater/QuickAdd)
+            if (activeView && activeView.editor) {
+                activeView.editor.focus();
+            }
             // @ts-ignore
             this.app.commands.executeCommandById(idToExecute);
             new Notice(`Successfully executed: ${command.name}`);
