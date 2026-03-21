@@ -36,10 +36,12 @@
 - [x] Optimized `.gitignore` for better development workflow.
 - [x] Synchronized version identifiers across all config files.
 
-### 7. Slash Commands (v1.7.0)
+### 7. Universal UI Assistant (v1.7.0)
 - [x] In-place native Slash Command trigger (`/ds`).
 - [x] Smart Context Sensing (Line and Paragraph level).
 - [x] Custom default trigger action (Instantly hitting Enter).
+- [x] **Universal UI Linkage**: Control Obsidian UI via Sidebar Chat using full command fuzzy matching (Keyword Intersection logic).
+- [x] **Sequential Tool Execution**: Stable multi-command handling in chat.
 
 ## Current Status
 System is stable. Multi-step workflows, Sidebar Chat, the **Hover UI**, and the new **Slash Commands** are fully functional, providing a zero-friction editing experience.

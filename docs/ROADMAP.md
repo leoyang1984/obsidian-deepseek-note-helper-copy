@@ -60,7 +60,7 @@ The plugin currently has completed its core context awareness, streaming interac
 
 ## ✅ Phase 5: Deep Command Flow (Workflow Integration - Completed)
 - [x] **Shortcut Keys and Slash Commands**
-  Support quick polishing/questioning in-place within the editor via native `/ds` or other configured triggers, featuring smart context sensing.
+  Support quick polishing/questioning in-place within the editor via native `/ds` or other configured triggers, featuring smart context sensing and universal UI linkage. <!-- v1.7.0 -->
 - [ ] **External Services Extension**
   Allow API integration to push notes to personal blogs or commit via Git.
 
@@ -136,7 +136,7 @@ The plugin currently has completed its core context awareness, streaming interac
 
 ## ✅ 第五阶段：深度命令流 (Workflow Integration - 已完成部分)
 - [x] **快捷键与斜杠命令 (Slash Commands)**
-  支持在编辑器内通过 `/ds` 原生建议菜单唤醒轻技能，实现快速原地润色和智能上下文捕获。
+  支持在编辑器内通过 `/ds` 原生建议菜单唤醒轻技能，实现快速原地润色、智能上下文捕获以及全能 UI 联动控制。 <!-- v1.7.0 -->
 - [ ] **外部服务扩展**
   允许通过 API 联动将笔记推送到个人博客或通过 Git 提交。
 
