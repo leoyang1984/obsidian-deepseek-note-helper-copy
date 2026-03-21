@@ -166,4 +166,143 @@ export class FileService {
             return `Failed to process directory: ${e instanceof Error ? e.message : String(e)}`;
         }
     }
+
+    async executeReadCanvas(path: string): Promise<string> {
+        const file = this.app.vault.getAbstractFileByPath(path);
+        if (!(file instanceof TFile) || file.extension !== 'canvas') {
+            return "No active canvas file found or the file is not a .canvas file.";
+        }
+
+        try {
+            const content = await this.app.vault.read(file);
+            const data = JSON.parse(content);
+            const nodes = data.nodes || [];
+            const edges = data.edges || [];
+
+            let result = `--- Canvas Context: [[${file.basename}]] ---\n\nNodes:\n`;
+            
+            const nodeMap = new Map();
+            nodes.forEach((node: any) => {
+                nodeMap.set(node.id, node);
+                let nodeDesc = `- [ID: ${node.id}] `;
+                if (node.type === 'text') {
+                    nodeDesc += `(Text): ${node.text}`;
+                } else if (node.type === 'file') {
+                    nodeDesc += `(File): [[${node.file}]]`;
+                } else if (node.type === 'link') {
+                    nodeDesc += `(URL): ${node.url}`;
+                } else if (node.type === 'group') {
+                    nodeDesc += `(Group): ${node.label || 'Untitled Group'}`;
+                } else {
+                    nodeDesc += `(Other: ${node.type})`;
+                }
+                result += nodeDesc + '\n';
+            });
+
+            if (edges.length > 0) {
+                result += '\nConnections:\n';
+                edges.forEach((edge: any) => {
+                    const from = nodeMap.get(edge.fromNode);
+                    const to = nodeMap.get(edge.toNode);
+                    const fromLabel = from ? (from.text || from.file || from.url || from.label || edge.fromNode) : edge.fromNode;
+                    const toLabel = to ? (to.text || to.file || to.url || to.label || edge.toNode) : edge.toNode;
+                    result += `- "${fromLabel}" -> "${toLabel}"${edge.label ? ` (Label: ${edge.label})` : ''}\n`;
+                });
+            }
+
+            return result;
+        } catch (e) {
+            return `Error parsing canvas file: ${e instanceof Error ? e.message : String(e)}`;
+        }
+    }
+
+    async getSelectedCanvasNodes(): Promise<{ text: string, x: number, y: number, width: number, height: number }[]> {
+        const canvasView = this.app.workspace.getActiveViewOfType(TFile as any); // Dynamic cast
+        const activeView = this.app.workspace.activeLeaf?.view as any;
+        
+        if (activeView?.getViewType() !== 'canvas') return [];
+        
+        const canvas = activeView.canvas;
+        const selection = canvas.selection;
+        if (!selection || selection.size === 0) return [];
+
+        const selectedNodes: any[] = [];
+        selection.forEach((node: any) => {
+            if (node.unknownData) { // It's a node
+                selectedNodes.push({
+                    text: node.text || node.file?.path || node.url || node.label || "",
+                    x: node.x,
+                    y: node.y,
+                    width: node.width,
+                    height: node.height
+                });
+            }
+        });
+        return selectedNodes;
+    }
+
+    async createCanvasNode(text: string, existingId?: string): Promise<string> {
+        const activeView = this.app.workspace.activeLeaf?.view as any;
+        if (activeView?.getViewType() !== 'canvas') {
+            return "";
+        }
+
+        try {
+            const canvas = activeView.canvas;
+            const selection = canvas.selection;
+            const data = canvas.getData();
+            
+            let id = existingId;
+            let targetX = 0;
+            let targetY = 0;
+
+            if (id) {
+                const node = data.nodes.find((n: any) => n.id === id);
+                if (node) {
+                    node.text = text;
+                    canvas.setData(data);
+                    canvas.requestSave();
+                    return id;
+                }
+            }
+
+            // Calculation for new node only if not updating or if id not found
+            if (selection && selection.size > 0) {
+                let maxX = -Infinity;
+                let minY = Infinity;
+                selection.forEach((node: any) => {
+                    if (node.x + node.width > maxX) maxX = node.x + node.width;
+                    if (node.y < minY) minY = node.y;
+                });
+                targetX = maxX + 50; 
+                targetY = minY;
+            } else {
+                const viewState = activeView.getState();
+                targetX = (viewState.x || 0) + 100;
+                targetY = (viewState.y || 0) + 100;
+            }
+
+            if (!id) {
+                id = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+            }
+
+            data.nodes.push({
+                id: id,
+                x: targetX,
+                y: targetY,
+                width: 400,
+                height: 200,
+                type: 'text',
+                text: text
+            });
+
+            canvas.setData(data);
+            canvas.requestSave();
+
+            return id;
+        } catch (e) {
+            console.error("Failed to create/update canvas node:", e);
+            return "";
+        }
+    }
 }

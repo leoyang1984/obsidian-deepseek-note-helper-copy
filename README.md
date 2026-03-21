@@ -63,10 +63,15 @@ The latest version introduces **Light Skills**, a Markdown-based DSL that allows
 #### 5. 🛠️ Skill Architect (AI Metadata Generator)
 - Use our built-in **Skill Architect** pipeline to help you *generate new skills*. Just describe what you want the AI to do, and it will write the Markdown DSL for you.
 
-#### 6. 📨 Telegram "Inbox" Synchronization
+#### 7. 📨 Telegram "Inbox" Synchronization
 - **Mobile Capture**: Send text or voice-to-text messages to your dedicated Telegram Bot while on the go.
 - **AI Refinement**: Automatically correct typos, remove filler words, and format into structured Markdown using DeepSeek.
-- **Auto-Sync**: Background polling ensures your "Inbox" in Obsidian is always up-to-date.
+
+#### 8. 🎮 AI Node Branching (Visual Intelligence - v2.2.0)
+- **"Aha Moment" on Canvas**: AI responses now appear directly as new nodes on your Canvas, spatially placed next to your selection.
+- **Context-Aware Selection**: Use `{{canvas_selection}}` to pass only specific nodes to the AI, reducing noise and token costs.
+- **Real-Time Visual Feedback**: Watch a "Thinking..." placeholder appear instantly before being replaced by the final AI response.
+- **Glassmorphic Prompt UI**: A redesigned, sleek input modal with blur effects and multiline support for a premium creative experience.
 
 ---
 
@@ -91,6 +96,7 @@ This project is licensed under a **Custom Non-Commercial License**. Commercial u
 
 ### 📝 Changelog
 
+- **v2.2.0 (2026-03-21)**: The **AI Node Branching** Milestone. Introduced "Visual Intelligence" for Obsidian Canvas. AI responses can now be instantiated as new nodes directly on the whiteboard with smart spatial placement, real-time visual feedback (placeholder nodes), and a premium glassmorphic prompt UI.
 - **v2.0.0 (2026-03-21)**: The **Svelte UI Architecture** Update. Completely rewrote the rendering engine from Vanilla JS to Svelte for ultimate performance and maintainability. Added Pipeline execution progress bars, robust inline approval cards, and instantaneous Slash Command eager deletions.
 - **v1.8.0 (2026-03-21)**: The **Universal Assistant** Update. Added sequential tool execution stability, keyword intersection matching, and comprehensive UI linkage guides.
 - **v1.7.0 (2026-03-20)**: Added native **Slash Command (`/ds`)** system for in-place text replacement.
@@ -150,8 +156,13 @@ This project is licensed under a **Custom Non-Commercial License**. Commercial u
 
 #### 7. 📨 Telegram “闪念”同步
 - **移动端捕获**：在外出时通过 Telegram Bot 发送文字或语音转文字，随时捕捉灵感。
-- **AI 自动润色**：利用 DeepSeek 自动修正口语错别字、去除废话，并转化为整齐的 Markdown。
-- **后台自动同步**：定时轮询确保您的 Obsidian “收件箱”始终保持最新状态。
+- **AI 自动润色**：利用 DeepSeek 自动修正口语错别字并转化为整齐的 Markdown。
+
+#### 8. 🎮 AI 白板空间衍生 (Canvas Node Branching - v2.2.0)
+- **白板上的 “Aha Moment”**：AI 的回答不再局限于侧边栏，而是直接在白板上以新节点的形式“啪”地出现，并自动排列在选区旁。
+- **局部选区感知**：支持 `{{canvas_selection}}` 变量。AI 只关注你框选的节点，反馈更精准，Token 消耗更低。
+- **实时视觉反馈**：点击生成后，白板会立即出现一个“思考中...”的占位节点，随后原地更新为最终内容。
+- **毛玻璃极简 UI**：专为白板设计的半透明沉浸式输入框，支持多行灵活输入。
 
 ---
 
@@ -176,6 +187,7 @@ This project is licensed under a **Custom Non-Commercial License**. Commercial u
 
 ### 📝 更新日志
 
+- **v2.2.0 (2026-03-21)**：“AI 白板空间衍生”里程碑。正式开启视觉智能阶段。支持 AI 回答直接实例化为白板节点、空间就近放置、实时进度反馈以及全新的毛玻璃沉浸式对话框。
 - **v2.0.0 (2026-03-21)**：“Svelte 响应式架构”里程碑。彻底抛弃了原生 DOM 渲染逻辑，将项目视图层完全重写为基于 Svelte 的现代化组件架构。新增了 Pipeline 流畅的动态执行进度条、上下文内联确认卡片，以及瞬间消除的无感斜杠命令体验。
 - **v1.8.0 (2026-03-21)**：“全能管家”里程碑。增加串行工具执行稳定性、关键字交集搜索算法、引号清洗逻辑以及全套自然语言指令指南。
 - **v1.7.0 (2026-03-20)**：新增 **Slash Command 斜杠命令 (`/ds`)** 与基础 UI 联动功能。支持原地文本即刻替换。

@@ -91,6 +91,12 @@ export class ChatService {
             additionalContext += `\n\n[System Info: The active note contains links to the following notes. Here is their content for additional context:\n${linkedNotesContext}]`;
         }
 
+        // Inject Canvas Context if applicable
+        if (activeFile && activeFile.extension === 'canvas') {
+            const canvasCtx = await this.fileService.executeReadCanvas(activeFile.path);
+            additionalContext += `\n\n[System Info: The user is currently viewing a Canvas file. Here is its structural context:\n${canvasCtx}]`;
+        }
+
         try {
             const finalPrompt = instruction + additionalContext;
 

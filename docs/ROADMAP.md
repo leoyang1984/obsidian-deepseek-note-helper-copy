@@ -76,8 +76,11 @@ The plugin currently has completed its core context awareness, streaming interac
   - **Local LLM Integration**: Support Ollama or LM Studio for 100% offline privacy projects.
   - **Multi-Agent Orchestration**: Allow different "Skills" to communicate with each other autonomously.
   - **Skill Marketplace**: A community platform to share and download "Light Skills" Markdown snippets.
-- [ ] **Canvas Integration**
-  Support spatial note reading and generation on Obsidian Canvas.
+- [ ] **Phase 8: Visual Knowledge Intelligence (Canvas)**
+  - [x] **Contextual Awareness (Reading)**: Support for `{{canvas_context}}` to parse nodes and edges into AI context. (v2.0.1)
+  - [x] **Generative Visuals (Writing)**: The "Aha Moment" - AI responses appear directly as new nodes next to selections. (v2.1.0)
+  - [ ] **Spatial UI Control**: Natural language navigation ("Focus on node X") and smart auto-organization.
+  - [ ] **Visual Workflow Designer**: Using Canvas to design and execute multi-step Agentic Pipelines.
 ## ✅ Phase 7: UI Architecture Overhaul (Svelte Migration - Completed)
 - [x] **Codebase Refactoring (UI Componentization & Logic Decoupling)**
   Refactored the monolithic `src/view.ts` (35KB of native DOM logic) into modular Svelte components and standalone Service Layers, massively reducing maintenance cost and laying groundwork for visual pipeline editors.
@@ -153,8 +156,11 @@ The plugin currently has completed its core context awareness, streaming interac
   - **本地大模型集成**：支持 Ollama / LM Studio 实现 100% 离线隐私项目。
   - **多代理编排**：支持不同“技能 (Skills)”之间自主通信与协作。
   - **技能市场**：用于分享和下载“轻技能”Markdown 脚本的社区平台。
-- [ ] **Canvas（白板）集成**
-  支持在白板模式下阅读多张卡片并生成新的可视化节点。
+- [ ] **第八阶段：视觉知识图谱 (Canvas / 白板整合)**
+  - [x] **空间上下文感知 (Reading)**：支持 `{{canvas_context}}` 变量，AI 可解析节点内容与逻辑连线。(v2.0.1)
+  - [x] **主动视觉生成 (Writing)**：打造“Aha Moment”——AI 回答直接在白板上作为新节点“啪”地一下出现并与原有节点并列。(v2.1.0)
+  - [ ] **空间 UI 操控**：自然语言导航（“聚焦到某个节点”）与语义化的自动布局。
+  - [ ] **视觉化工作流编辑器**：将 Canvas 作为 Pipeline 的设计与执行画布。
 ## ✅ 第七阶段：UI 架构大重构 (Svelte 迁移 - 已完成)
 - [x] **核心 UI 重构 (侧边栏组件化与逻辑解耦)**
   已成功将用于渲染右侧边栏的巨石文件 `src/view.ts` 深层解构。全面引入 Svelte 实现组件化，并将工具调用、命令执行逻辑彻底剥离至独立的服务层。极大提升了代码健壮性并为未来增加“可视化 Pipeline 拖曳编辑器”做好了技术基建。

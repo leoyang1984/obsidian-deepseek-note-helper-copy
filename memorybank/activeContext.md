@@ -1,10 +1,11 @@
 # Active Context
 
-## Current Active Release: v2.0.0 ("Svelte Engine Resurgence")
-Successfully refactored the entire view layer from procedural Vanilla JS to declarative Svelte components. The plugin is now exceptionally maintainable and robust.
+## Current Active Release: v2.2.0 ("Visual Intelligence")
+Successfully expanded the plugin's capabilities into the Obsidian Canvas. AI can now participate in visual thinking by "reading" node networks and "writing" new nodes directly onto the whiteboard.
 
-## Recent Focus: v2.0.0 UI Polishing
-- **Svelte Store Reactivity**: Centralized all chat context and UI states within Svelte `writable` stores.
-- **Pipeline Progress Tracking**: Introduced UI progress banners to provide clear feedback during background automated tasks.
-- **Inline Approvals**: Refactored the Pipeline Approval card to natively inject itself into the chronological message flow avoiding DOM overlapping issues.
-- Codebase is production-ready for GitHub release.
+## Recent Focus: v2.2.0 AI Node Branching
+- **Canvas Context Awareness**: Integrated `{{canvas_selection}}` parsing into the `SkillExecutor` for precise, localized AI reasoning.
+- **Generative Writing (to_canvas)**: Implemented a robust `setData` workflow to instantiate AI responses as Canvas nodes.
+- **Micro-interactivity**: Added placeholder "Thinking..." nodes to provide immediate visual feedback during LLM generation.
+- **UI Refinement**: Designed a glassmorphic, multiline prompt modal that fits the premium design standard of the project.
+- Codebase is production-ready for v2.2.0 GitHub release.

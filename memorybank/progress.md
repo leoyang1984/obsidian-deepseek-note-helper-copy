@@ -30,7 +30,6 @@
 - [x] Movable header handle, resizable container, and one-click copy button.
 - [x] Visual context indicator so users don't lose track of their highlight.
 
-
 ### 6. Maintenance & Optimization (v1.5.1)
 - [x] Cleaned up repository by removing large test folders (`test-vault/`) from Git tracking.
 - [x] Optimized `.gitignore` for better development workflow.
@@ -41,7 +40,7 @@
 - [x] Smart Context Sensing (Line and Paragraph level).
 - [x] Custom default trigger action (Instantly hitting Enter).
 - [x] **Universal UI Linkage**: Control Obsidian UI via Sidebar Chat using full command fuzzy matching (Keyword Intersection logic).
-- [x] **Sequential Tool Execution**: Stable multi-command handling with 100ms safety delays. <!-- v1.8.0 -->
+- [x] **Sequential Tool Execution**: Stable multi-command handling with 100ms safety delays.
 
 ### 8. V2.0.0 Svelte Architecture Overhaul
 - [x] Completely rewrote `src/view.ts` natively into modular Svelte components.
@@ -50,10 +49,16 @@
 - [x] Introduced real-time UX for pipelines (progress rendering and inline native step pausing).
 - [x] Instant slash command trigger text erasure.
 
+### 9. AI Node Branching (Visual Intelligence - v2.2.0)
+- [x] **Contextual Reading**: Parse nodes and edges into AI context using `{{canvas_selection}}`.
+- [x] **Generative Writing**: Instant instantiation of AI responses as new Canvas nodes.
+- [x] **Visual Feedback**: Real-time placeholder nodes ("Thinking...") for better UX.
+- [x] **Premium UI**: Custom glassmorphic prompt modal with multiline support.
+
 ## Current Status
-System has evolved to version 2.0.0. The underlying DOM manipulation has been completely replaced by an elegantly reactive Svelte web app. Multi-step workflows, Sidebar Chat, the **Hover UI**, and the new **Slash Commands** are now highly stable, visually smooth, and ready for massive functional scaling.
+System has evolved to version 2.2.0. We have successfully entered the **Visual Intelligence** phase: the AI is no longer limited to the sidebar or editor but can now directly participate in the Obsidian Canvas ecosystem. The Svelte architecture remains robust, supporting these new visual interactions with high performance.
 
 ## Next Steps 🚀
-- [ ] Support more variables (date, path, props).
-- [ ] Implement conditional branching in pipelines (if/else).
-- [ ] Add support for embedding images/files in pipelines.
+- [ ] **Stage 3: Spatial UI Control**: Natural language navigation and auto-organization of Canvas nodes.
+- [ ] **Stage 4: Visual Workflow Designer**: Using Canvas as a flowchart to design and execute Pipelines.
+- [ ] Support more variables (date, path, props) in standard pipelines.

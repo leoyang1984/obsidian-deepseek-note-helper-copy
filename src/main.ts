@@ -49,6 +49,9 @@ const DEFAULT_SETTINGS: DeepSeekSettings = {
 import { SkillManager } from './skillManager';
 import { DeepSeekHoverView } from './hoverView';
 import { DeepSeekSlashSuggest } from './slashSuggest';
+import { TelegramService } from './telegramService';
+import { SkillExecutor } from './skillExecutor';
+import { QuickPromptModal } from './ui/QuickPromptModal';
 
 export default class DeepSeekPlugin extends Plugin {
     settings: DeepSeekSettings = DEFAULT_SETTINGS;
@@ -99,11 +102,47 @@ export default class DeepSeekPlugin extends Plugin {
             ],
         });
 
+        // Add Canvas Branching Command
+        this.addCommand({
+            id: 'deepseek-canvas-branch',
+            name: 'AI Node Branching (Canvas)',
+            checkCallback: (checking: boolean) => {
+                const activeView = (this.app.workspace.activeLeaf?.view as any);
+                if (activeView?.getViewType() === 'canvas') {
+                    if (!checking) {
+                        this.handleCanvasBranching(activeView);
+                    }
+                    return true;
+                }
+                return false;
+            }
+        });
+
         // Initialize Telegram Service
         this.telegramService = new TelegramService(this);
         
         // Ensure polling starts on load if configured
         this.startPolling();
+    }
+
+    private async handleCanvasBranching(canvasView: any) {
+        new QuickPromptModal(
+            this.app,
+            "AI Node Branching",
+            "What should AI do with selected nodes? (e.g. 'Summarize', 'Next steps')",
+            async (prompt) => {
+                if (!prompt) return;
+                
+                const skillExecutor = new SkillExecutor(this.app, this);
+                const virtualSkill: any = {
+                    id: "canvas-branching",
+                    name: "Canvas Branching",
+                    action: "to_canvas",
+                    template: `Instruction: ${prompt}\n\nSelected Context:\n{{canvas_selection}}`
+                };
+                await skillExecutor.execute(virtualSkill);
+            }
+        ).open();
     }
 
     startPolling() {
@@ -357,4 +396,3 @@ class DeepSeekSettingTab extends PluginSettingTab {
     }
 }
 
-import { TelegramService } from './telegramService';

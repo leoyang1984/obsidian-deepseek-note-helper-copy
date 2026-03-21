@@ -38,7 +38,7 @@ __export(main_exports, {
   default: () => DeepSeekPlugin7
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian11 = require("obsidian");
+var import_obsidian12 = require("obsidian");
 
 // src/view.ts
 var import_obsidian4 = require("obsidian");
@@ -187,6 +187,132 @@ ${fullOrLarge}
 To apply the instruction "${instruction}", please call 'update_metadata' or 'append_to_note' on these files one by one.`;
     } catch (e) {
       return `Failed to process directory: ${e instanceof Error ? e.message : String(e)}`;
+    }
+  }
+  async executeReadCanvas(path) {
+    const file = this.app.vault.getAbstractFileByPath(path);
+    if (!(file instanceof import_obsidian.TFile) || file.extension !== "canvas") {
+      return "No active canvas file found or the file is not a .canvas file.";
+    }
+    try {
+      const content = await this.app.vault.read(file);
+      const data = JSON.parse(content);
+      const nodes = data.nodes || [];
+      const edges = data.edges || [];
+      let result = `--- Canvas Context: [[${file.basename}]] ---
+
+Nodes:
+`;
+      const nodeMap = /* @__PURE__ */ new Map();
+      nodes.forEach((node) => {
+        nodeMap.set(node.id, node);
+        let nodeDesc = `- [ID: ${node.id}] `;
+        if (node.type === "text") {
+          nodeDesc += `(Text): ${node.text}`;
+        } else if (node.type === "file") {
+          nodeDesc += `(File): [[${node.file}]]`;
+        } else if (node.type === "link") {
+          nodeDesc += `(URL): ${node.url}`;
+        } else if (node.type === "group") {
+          nodeDesc += `(Group): ${node.label || "Untitled Group"}`;
+        } else {
+          nodeDesc += `(Other: ${node.type})`;
+        }
+        result += nodeDesc + "\n";
+      });
+      if (edges.length > 0) {
+        result += "\nConnections:\n";
+        edges.forEach((edge) => {
+          const from = nodeMap.get(edge.fromNode);
+          const to = nodeMap.get(edge.toNode);
+          const fromLabel = from ? from.text || from.file || from.url || from.label || edge.fromNode : edge.fromNode;
+          const toLabel = to ? to.text || to.file || to.url || to.label || edge.toNode : edge.toNode;
+          result += `- "${fromLabel}" -> "${toLabel}"${edge.label ? ` (Label: ${edge.label})` : ""}
+`;
+        });
+      }
+      return result;
+    } catch (e) {
+      return `Error parsing canvas file: ${e instanceof Error ? e.message : String(e)}`;
+    }
+  }
+  async getSelectedCanvasNodes() {
+    var _a5;
+    const canvasView = this.app.workspace.getActiveViewOfType(import_obsidian.TFile);
+    const activeView = (_a5 = this.app.workspace.activeLeaf) == null ? void 0 : _a5.view;
+    if ((activeView == null ? void 0 : activeView.getViewType()) !== "canvas") return [];
+    const canvas = activeView.canvas;
+    const selection = canvas.selection;
+    if (!selection || selection.size === 0) return [];
+    const selectedNodes = [];
+    selection.forEach((node) => {
+      var _a6;
+      if (node.unknownData) {
+        selectedNodes.push({
+          text: node.text || ((_a6 = node.file) == null ? void 0 : _a6.path) || node.url || node.label || "",
+          x: node.x,
+          y: node.y,
+          width: node.width,
+          height: node.height
+        });
+      }
+    });
+    return selectedNodes;
+  }
+  async createCanvasNode(text2, existingId) {
+    var _a5;
+    const activeView = (_a5 = this.app.workspace.activeLeaf) == null ? void 0 : _a5.view;
+    if ((activeView == null ? void 0 : activeView.getViewType()) !== "canvas") {
+      return "";
+    }
+    try {
+      const canvas = activeView.canvas;
+      const selection = canvas.selection;
+      const data = canvas.getData();
+      let id = existingId;
+      let targetX = 0;
+      let targetY = 0;
+      if (id) {
+        const node = data.nodes.find((n) => n.id === id);
+        if (node) {
+          node.text = text2;
+          canvas.setData(data);
+          canvas.requestSave();
+          return id;
+        }
+      }
+      if (selection && selection.size > 0) {
+        let maxX = -Infinity;
+        let minY = Infinity;
+        selection.forEach((node) => {
+          if (node.x + node.width > maxX) maxX = node.x + node.width;
+          if (node.y < minY) minY = node.y;
+        });
+        targetX = maxX + 50;
+        targetY = minY;
+      } else {
+        const viewState = activeView.getState();
+        targetX = (viewState.x || 0) + 100;
+        targetY = (viewState.y || 0) + 100;
+      }
+      if (!id) {
+        id = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+      }
+      data.nodes.push({
+        id,
+        x: targetX,
+        y: targetY,
+        width: 400,
+        height: 200,
+        type: "text",
+        text: text2
+      });
+      canvas.setData(data);
+      canvas.requestSave();
+      return id;
+    } catch (e) {
+      console.error("Failed to create/update canvas node:", e);
+      return "";
     }
   }
 };
@@ -6039,6 +6165,13 @@ ${content}
 [System Info: The active note contains links to the following notes. Here is their content for additional context:
 ${linkedNotesContext}]`;
     }
+    if (activeFile && activeFile.extension === "canvas") {
+      const canvasCtx = await this.fileService.executeReadCanvas(activeFile.path);
+      additionalContext += `
+
+[System Info: The user is currently viewing a Canvas file. Here is its structural context:
+${canvasCtx}]`;
+    }
     try {
       const finalPrompt = instruction + additionalContext;
       const customSkills = Array.from(this.plugin.skillManager.skills.values()).map((s) => s.name).join(", ");
@@ -6947,9 +7080,11 @@ var SkillExecutor = class {
     __publicField(this, "plugin");
     __publicField(this, "app");
     __publicField(this, "llm");
+    __publicField(this, "fileService");
     this.app = app;
     this.plugin = plugin;
     this.llm = new LlmService(plugin);
+    this.fileService = new FileService(app, plugin.settings);
   }
   async execute(skill, execCtx) {
     this.plugin.logger.log("pipeline", "system", `Starting execution of skill: ${skill.name}`, { skill });
@@ -6983,6 +7118,14 @@ var SkillExecutor = class {
       title: activeFile ? activeFile.basename : "",
       content: activeFile ? await this.app.vault.cachedRead(activeFile) : ""
     };
+    if (activeFile && activeFile.extension === "canvas") {
+      initialContext.canvas_context = await this.fileService.executeReadCanvas(activeFile.path);
+      const selectedNodes = await this.fileService.getSelectedCanvasNodes();
+      if (selectedNodes.length > 0) {
+        initialContext.canvas_selection = selectedNodes.map((n) => `- ${n.text}`).join("\n");
+        initialContext.selection = initialContext.canvas_selection;
+      }
+    }
     try {
       initialContext.clipboard = await navigator.clipboard.readText();
     } catch (e) {
@@ -6997,12 +7140,42 @@ var SkillExecutor = class {
         action2 = "replace";
       }
       let prompt = this.renderTemplate(skill.template, initialContext);
+      let resp;
+      if (action2 === "insert_below") {
+        new import_obsidian6.Notice("AI is thinking...", 3e3);
+        try {
+          resp = await this.llm.ask(prompt);
+        } catch (error) {
+          console.error("LLM execution failed:", error);
+          new import_obsidian6.Notice("AI request failed. Check console or API key.");
+          return;
+        }
+      }
       if (action2 === "to_chat") {
         await this.executeToChat(prompt);
       } else if (action2 === "replace") {
         await this.executeReplace(prompt, activeView, execCtx, textToReplaceStart);
-      } else if (action2 === "insert_below") {
-        await this.executeInsert(prompt, activeView, execCtx);
+      } else if (action2 === "insert_below" && editor && resp !== void 0) {
+        if ((execCtx == null ? void 0 : execCtx.source) === "slash" && execCtx.triggerRange) {
+          editor.replaceRange("", execCtx.triggerRange.start, execCtx.triggerRange.end);
+        }
+        const cursor = editor.getCursor();
+        const textToInsert = `
+${resp}
+`;
+        const lineStr = editor.getLine(cursor.line);
+        editor.replaceRange(textToInsert, { line: cursor.line, ch: lineStr.length });
+        new import_obsidian6.Notice("Content inserted.");
+      } else if (action2 === "to_canvas") {
+        const placeholderId = await this.fileService.createCanvasNode("AI is thinking... \u{1F9E0}");
+        try {
+          const aiResp = await this.llm.ask(prompt);
+          await this.fileService.createCanvasNode(aiResp, placeholderId);
+          new import_obsidian6.Notice("Canvas node updated.");
+        } catch (error) {
+          await this.fileService.createCanvasNode(`Error: ${error instanceof Error ? error.message : String(error)}`, placeholderId);
+          new import_obsidian6.Notice("AI request failed.");
+        }
       } else if (action2 === "command") {
         await this.executeCommand(skill.command || prompt, activeView);
       } else {
@@ -7082,6 +7255,9 @@ var SkillExecutor = class {
         const commandView = activeView || this.app.workspace.getActiveViewOfType(import_obsidian6.MarkdownView);
         await this.executeCommand(step.command || renderedPrompt, commandView);
         stepResult = `[Executed Command: ${step.command || renderedPrompt}]`;
+      } else if (step.action === "to_canvas") {
+        await this.fileService.createCanvasNode(renderedPrompt);
+        stepResult = "[Created Canvas Node]";
       } else {
         console.warn(`Unknown action ${step.action} in step ${step.id}`);
       }
@@ -7592,9 +7768,6 @@ var DeepSeekSlashSuggest = class extends import_obsidian9.EditorSuggest {
   }
 };
 
-// src/main.ts
-var import_obsidian12 = require("obsidian");
-
 // src/telegramService.ts
 var import_obsidian10 = require("obsidian");
 var TelegramService = class {
@@ -7724,7 +7897,68 @@ ${formattedEntry}`);
   }
 };
 
+// src/ui/QuickPromptModal.ts
+var import_obsidian11 = require("obsidian");
+var QuickPromptModal = class extends import_obsidian11.Modal {
+  constructor(app, title, placeholder, onSubmit) {
+    super(app);
+    __publicField(this, "result", "");
+    __publicField(this, "onSubmit");
+    __publicField(this, "title");
+    __publicField(this, "placeholder");
+    this.title = title;
+    this.placeholder = placeholder;
+    this.onSubmit = onSubmit;
+  }
+  onOpen() {
+    const { contentEl, modalEl } = this;
+    contentEl.empty();
+    modalEl.addClass("ds-canvas-prompt-modal");
+    this.titleEl.setText(this.title);
+    const body = contentEl.createDiv({ cls: "ds-prompt-body" });
+    const textArea = body.createEl("textarea", {
+      cls: "ds-prompt-textarea",
+      attr: { placeholder: this.placeholder }
+    });
+    textArea.addEventListener("input", () => {
+      this.result = textArea.value;
+    });
+    textArea.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        if (this.result.trim()) {
+          this.onSubmit(this.result);
+          this.close();
+        }
+      } else if (e.key === "Escape") {
+        this.close();
+      }
+    });
+    const footer = contentEl.createDiv({ cls: "ds-prompt-footer" });
+    const hints = footer.createDiv({ cls: "ds-prompt-hints" });
+    hints.setText("Enter to generate \u2022 Shift+Enter for new line");
+    const btn = footer.createEl("button", {
+      text: "Generate",
+      cls: "mod-cta ds-generate-btn"
+    });
+    btn.addEventListener("click", () => {
+      if (this.result.trim()) {
+        this.onSubmit(this.result);
+        this.close();
+      }
+    });
+    setTimeout(() => {
+      textArea.focus();
+    }, 100);
+  }
+  onClose() {
+    const { contentEl } = this;
+    contentEl.empty();
+  }
+};
+
 // src/main.ts
+var import_obsidian13 = require("obsidian");
 var DEFAULT_SETTINGS = {
   provider: "deepseek",
   apiKey: "",
@@ -7748,7 +7982,7 @@ var DEFAULT_SETTINGS = {
   tgPromptTemplate: "\u4F60\u662F\u4E00\u4E2A\u4E13\u4E1A\u7684\u6570\u5B57\u82B1\u56ED\u6574\u7406\u4E13\u5BB6\u3002\u7528\u6237\u901A\u8FC7 Telegram \u53D1\u6765\u7684\u6D88\u606F\u591A\u4E3A\u96F6\u788E\u7684\u7075\u611F\u3001\u5F85\u529E\u6216\u8BED\u97F3\u8F6C\u6587\u5B57\u7684\u8349\u7A3F\u3002\n\u8BF7\u6309\u4EE5\u4E0B\u89C4\u5219\u5904\u7406\uFF1A\n1. **\u4FEE\u6B63\u9519\u5B57**\uFF1A\u4F9D\u636E\u8BED\u5883\u7EA0\u6B63\u8BED\u97F3\u5F55\u5165\u4EA7\u751F\u7684\u540C\u97F3\u9519\u522B\u5B57\u548C\u4E2D\u82F1\u6DF7\u6742\u9519\u8BEF\u3002\n2. **\u7ED3\u6784\u5316**\uFF1A\u5C06\u53E3\u8BED\u5316\u7684\u8868\u8FBE\u8F6C\u5316\u4E3A\u6E05\u6670\u7684\u4E66\u9762\u903B\u8F91\uFF0C\u4F7F\u7528\u5217\u8868\uFF08-\uFF09\u6216\u5F15\u7528\uFF08>\uFF09\u683C\u5F0F\u3002\n3. **\u4FDD\u6301\u539F\u610F**\uFF1A\u4FDD\u7559\u5185\u5BB9\u7684\u771F\u5B9E\u610F\u56FE\uFF0C\u4E0D\u8981\u6539\u53D8\u7528\u6237\u7684\u6838\u5FC3\u4FE1\u606F\u70B9\u3002\n4. **\u8F93\u51FA\u9650\u5236**\uFF1A\u53EA\u8FD4\u56DE\u5904\u7406\u540E\u7684 Markdown \u5185\u5BB9\uFF0C\u7981\u6B62\u8F93\u51FA\u4EFB\u4F55\u89E3\u91CA\u6027\u5E9F\u8BDD\u3002\n\n\u5F85\u5904\u7406\u539F\u6587\uFF1A\n{{tg_message}}",
   tgLastUpdateId: 0
 };
-var DeepSeekPlugin7 = class extends import_obsidian11.Plugin {
+var DeepSeekPlugin7 = class extends import_obsidian12.Plugin {
   constructor() {
     super(...arguments);
     __publicField(this, "settings", DEFAULT_SETTINGS);
@@ -7787,8 +8021,44 @@ var DeepSeekPlugin7 = class extends import_obsidian11.Plugin {
         }
       ]
     });
+    this.addCommand({
+      id: "deepseek-canvas-branch",
+      name: "AI Node Branching (Canvas)",
+      checkCallback: (checking) => {
+        var _a5;
+        const activeView = (_a5 = this.app.workspace.activeLeaf) == null ? void 0 : _a5.view;
+        if ((activeView == null ? void 0 : activeView.getViewType()) === "canvas") {
+          if (!checking) {
+            this.handleCanvasBranching(activeView);
+          }
+          return true;
+        }
+        return false;
+      }
+    });
     this.telegramService = new TelegramService(this);
     this.startPolling();
+  }
+  async handleCanvasBranching(canvasView) {
+    new QuickPromptModal(
+      this.app,
+      "AI Node Branching",
+      "What should AI do with selected nodes? (e.g. 'Summarize', 'Next steps')",
+      async (prompt) => {
+        if (!prompt) return;
+        const skillExecutor = new SkillExecutor(this.app, this);
+        const virtualSkill = {
+          id: "canvas-branching",
+          name: "Canvas Branching",
+          action: "to_canvas",
+          template: `Instruction: ${prompt}
+
+Selected Context:
+{{canvas_selection}}`
+        };
+        await skillExecutor.execute(virtualSkill);
+      }
+    ).open();
   }
   startPolling() {
     if (this.telegramService) {
@@ -7830,7 +8100,7 @@ var DeepSeekPlugin7 = class extends import_obsidian11.Plugin {
     await this.saveData(this.settings);
   }
 };
-var DeepSeekSettingTab = class extends import_obsidian12.PluginSettingTab {
+var DeepSeekSettingTab = class extends import_obsidian13.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     __publicField(this, "plugin");
@@ -7839,8 +8109,8 @@ var DeepSeekSettingTab = class extends import_obsidian12.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    new import_obsidian12.Setting(containerEl).setName("Deepseek").setHeading();
-    new import_obsidian12.Setting(containerEl).setName("AI Provider").setDesc("Select the AI service provider.").addDropdown((drop) => drop.addOption("deepseek", "DeepSeek").addOption("kimi", "Kimi (Moonshot)").addOption("openai", "OpenAI").addOption("custom", "Custom").setValue(this.plugin.settings.provider).onChange(async (value) => {
+    new import_obsidian13.Setting(containerEl).setName("Deepseek").setHeading();
+    new import_obsidian13.Setting(containerEl).setName("AI Provider").setDesc("Select the AI service provider.").addDropdown((drop) => drop.addOption("deepseek", "DeepSeek").addOption("kimi", "Kimi (Moonshot)").addOption("openai", "OpenAI").addOption("custom", "Custom").setValue(this.plugin.settings.provider).onChange(async (value) => {
       this.plugin.settings.provider = value;
       if (value === "deepseek") {
         this.plugin.settings.apiUrl = "https://api.deepseek.com";
@@ -7855,35 +8125,35 @@ var DeepSeekSettingTab = class extends import_obsidian12.PluginSettingTab {
       await this.plugin.saveSettings();
       this.display();
     }));
-    new import_obsidian12.Setting(containerEl).setName("API key").setDesc(`Enter your API key for ${this.plugin.settings.provider}.`).addText((text2) => text2.setValue(this.plugin.settings.apiKeys[this.plugin.settings.provider] || "").onChange((value) => {
+    new import_obsidian13.Setting(containerEl).setName("API key").setDesc(`Enter your API key for ${this.plugin.settings.provider}.`).addText((text2) => text2.setValue(this.plugin.settings.apiKeys[this.plugin.settings.provider] || "").onChange((value) => {
       this.plugin.settings.apiKeys[this.plugin.settings.provider] = value;
       if (this.plugin.settings.provider === "deepseek") {
         this.plugin.settings.apiKey = value;
       }
       void this.plugin.saveSettings().catch(console.error);
     }));
-    new import_obsidian12.Setting(containerEl).setName("API URL").setDesc("Endpoint for the API. (Will auto-update if Provider is changed)").addText((text2) => text2.setValue(this.plugin.settings.apiUrl).onChange((value) => {
+    new import_obsidian13.Setting(containerEl).setName("API URL").setDesc("Endpoint for the API. (Will auto-update if Provider is changed)").addText((text2) => text2.setValue(this.plugin.settings.apiUrl).onChange((value) => {
       this.plugin.settings.apiUrl = value;
       void this.plugin.saveSettings().catch(console.error);
     }));
-    new import_obsidian12.Setting(containerEl).setName("Model").setDesc("Model to use.").addText((text2) => text2.setValue(this.plugin.settings.model).onChange((value) => {
+    new import_obsidian13.Setting(containerEl).setName("Model").setDesc("Model to use.").addText((text2) => text2.setValue(this.plugin.settings.model).onChange((value) => {
       this.plugin.settings.model = value;
       void this.plugin.saveSettings().catch(console.error);
     }));
-    new import_obsidian12.Setting(containerEl).setName("Skills directory").setDesc("Folder where your Markdown skills are stored (e.g. DeepSeek-Skills).").addText((text2) => text2.setValue(this.plugin.settings.skillsDirectory).onChange((value) => {
+    new import_obsidian13.Setting(containerEl).setName("Skills directory").setDesc("Folder where your Markdown skills are stored (e.g. DeepSeek-Skills).").addText((text2) => text2.setValue(this.plugin.settings.skillsDirectory).onChange((value) => {
       this.plugin.settings.skillsDirectory = value;
       void this.plugin.skillManager.loadSkills().catch(console.error);
     }));
-    new import_obsidian12.Setting(containerEl).setName("Log export directory").setDesc("Folder where execution logs will be exported (e.g. DeepSeek-Logs).").addText((text2) => text2.setValue(this.plugin.settings.logDirectory).onChange(async (value) => {
+    new import_obsidian13.Setting(containerEl).setName("Log export directory").setDesc("Folder where execution logs will be exported (e.g. DeepSeek-Logs).").addText((text2) => text2.setValue(this.plugin.settings.logDirectory).onChange(async (value) => {
       this.plugin.settings.logDirectory = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian12.Setting(containerEl).setName("Slash Commands").setHeading();
-    new import_obsidian12.Setting(containerEl).setName("Slash Command Trigger").setDesc("Trigger string to show the Light Skills menu in the editor.").addText((text2) => text2.setValue(this.plugin.settings.slashCommandTrigger).onChange(async (value) => {
+    new import_obsidian13.Setting(containerEl).setName("Slash Commands").setHeading();
+    new import_obsidian13.Setting(containerEl).setName("Slash Command Trigger").setDesc("Trigger string to show the Light Skills menu in the editor.").addText((text2) => text2.setValue(this.plugin.settings.slashCommandTrigger).onChange(async (value) => {
       this.plugin.settings.slashCommandTrigger = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian12.Setting(containerEl).setName("Default Action (Enter instantly)").setDesc("If you select a skill here, typing the trigger and hitting Enter will immediately execute this skill instead of showing the menu.").addDropdown((drop) => {
+    new import_obsidian13.Setting(containerEl).setName("Default Action (Enter instantly)").setDesc("If you select a skill here, typing the trigger and hitting Enter will immediately execute this skill instead of showing the menu.").addDropdown((drop) => {
       drop.addOption("none", "Show Menu Only (Default)");
       this.plugin.skillManager.skills.forEach((skill) => {
         drop.addOption(skill.id, skill.name);
@@ -7893,18 +8163,18 @@ var DeepSeekSettingTab = class extends import_obsidian12.PluginSettingTab {
         await this.plugin.saveSettings();
       });
     });
-    new import_obsidian12.Setting(containerEl).setName("Telegram Sync Settings").setHeading();
-    new import_obsidian12.Setting(containerEl).setName("Telegram Bot Token").setDesc("Token from @BotFather.").addText((text2) => text2.setPlaceholder("Enter your bot token").setValue(this.plugin.settings.tgBotToken).onChange(async (value) => {
+    new import_obsidian13.Setting(containerEl).setName("Telegram Sync Settings").setHeading();
+    new import_obsidian13.Setting(containerEl).setName("Telegram Bot Token").setDesc("Token from @BotFather.").addText((text2) => text2.setPlaceholder("Enter your bot token").setValue(this.plugin.settings.tgBotToken).onChange(async (value) => {
       this.plugin.settings.tgBotToken = value;
       await this.plugin.saveSettings();
       this.plugin.startPolling();
     }));
-    new import_obsidian12.Setting(containerEl).setName("My Chat ID").setDesc("Whitelisted Chat ID to receive messages from.").addText((text2) => text2.setPlaceholder("Enter your Chat ID").setValue(this.plugin.settings.tgChatId).onChange(async (value) => {
+    new import_obsidian13.Setting(containerEl).setName("My Chat ID").setDesc("Whitelisted Chat ID to receive messages from.").addText((text2) => text2.setPlaceholder("Enter your Chat ID").setValue(this.plugin.settings.tgChatId).onChange(async (value) => {
       this.plugin.settings.tgChatId = value;
       await this.plugin.saveSettings();
       this.plugin.startPolling();
     }));
-    new import_obsidian12.Setting(containerEl).setName("Polling Interval (seconds)").setDesc("How often to check for new messages.").addText((text2) => text2.setValue(String(this.plugin.settings.tgPollingInterval)).onChange(async (value) => {
+    new import_obsidian13.Setting(containerEl).setName("Polling Interval (seconds)").setDesc("How often to check for new messages.").addText((text2) => text2.setValue(String(this.plugin.settings.tgPollingInterval)).onChange(async (value) => {
       const num = parseInt(value);
       if (!isNaN(num) && num > 0) {
         this.plugin.settings.tgPollingInterval = num;
@@ -7912,15 +8182,15 @@ var DeepSeekSettingTab = class extends import_obsidian12.PluginSettingTab {
         this.plugin.startPolling();
       }
     }));
-    new import_obsidian12.Setting(containerEl).setName("Target Note Path").setDesc("Path to the Markdown file where notes will be saved (e.g. Inbox/TG-Notes.md).").addText((text2) => text2.setValue(this.plugin.settings.tgSavePath).onChange(async (value) => {
+    new import_obsidian13.Setting(containerEl).setName("Target Note Path").setDesc("Path to the Markdown file where notes will be saved (e.g. Inbox/TG-Notes.md).").addText((text2) => text2.setValue(this.plugin.settings.tgSavePath).onChange(async (value) => {
       this.plugin.settings.tgSavePath = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian12.Setting(containerEl).setName("Enable DeepSeek Processing").setDesc("Use AI to format and correct the incoming messages.").addToggle((toggle) => toggle.setValue(this.plugin.settings.tgAiProcessing).onChange(async (value) => {
+    new import_obsidian13.Setting(containerEl).setName("Enable DeepSeek Processing").setDesc("Use AI to format and correct the incoming messages.").addToggle((toggle) => toggle.setValue(this.plugin.settings.tgAiProcessing).onChange(async (value) => {
       this.plugin.settings.tgAiProcessing = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian12.Setting(containerEl).setName("Prompt Template").setDesc("Template for AI processing. Use {{tg_message}} as placeholder.").addTextArea((text2) => text2.setValue(this.plugin.settings.tgPromptTemplate).onChange(async (value) => {
+    new import_obsidian13.Setting(containerEl).setName("Prompt Template").setDesc("Template for AI processing. Use {{tg_message}} as placeholder.").addTextArea((text2) => text2.setValue(this.plugin.settings.tgPromptTemplate).onChange(async (value) => {
       this.plugin.settings.tgPromptTemplate = value;
       await this.plugin.saveSettings();
     }));

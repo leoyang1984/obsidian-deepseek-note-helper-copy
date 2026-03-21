@@ -441,3 +441,86 @@
     background: var(--background-modifier-border);
     border-radius: 10px;
 }
+/* Modal Styles */
+.ds-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+.ds-generate-btn {
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 600;
+    transition: transform 0.1s ease;
+}
+
+.ds-generate-btn:hover {
+    transform: scale(1.02);
+}
+
+.ds-generate-btn:active {
+    transform: scale(0.98);
+}
+
+/* Canvas Prompt Modal - Glassmorphic Style */
+.ds-canvas-prompt-modal {
+    background: var(--background-primary) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border-radius: 12px !important;
+    border: 1px solid var(--background-modifier-border) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    max-width: 500px !important;
+}
+
+.ds-canvas-prompt-modal .modal-title {
+    padding: 16px 20px 8px 20px;
+    margin: 0;
+    font-size: 1.2em;
+    font-weight: 600;
+}
+
+.ds-canvas-prompt-modal .modal-content {
+    padding: 0 !important;
+}
+
+.ds-prompt-body {
+    padding: 12px 20px;
+}
+
+.ds-prompt-textarea {
+    width: 100%;
+    min-height: 100px;
+    background: var(--background-secondary-alt) !important;
+    border: 1px solid var(--background-modifier-border) !important;
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 1em;
+    color: var(--text-normal);
+    resize: none;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.ds-prompt-textarea:focus {
+    border-color: var(--interactive-accent) !important;
+}
+
+.ds-prompt-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    background: color-mix(in srgb, var(--background-secondary) 85%, transparent);
+    border-top: 1px solid var(--background-modifier-border);
+}
+
+.ds-prompt-hints {
+    font-size: 0.75em;
+    color: var(--text-faint);
+}

@@ -6,6 +6,7 @@ import type { Skill } from './skillManager';
 import { LlmService } from './llmService';
 import { stopRequested, pipelineProgress } from './store';
 import { get } from 'svelte/store';
+import { FileService } from './services/FileService';
 
 export interface ExecuteContext {
     editor?: Editor;
@@ -18,11 +19,13 @@ export class SkillExecutor {
     plugin: DeepSeekPlugin;
     app: App;
     llm: LlmService;
+    fileService: FileService;
 
     constructor(app: App, plugin: DeepSeekPlugin) {
         this.app = app;
         this.plugin = plugin;
         this.llm = new LlmService(plugin);
+        this.fileService = new FileService(app, plugin.settings);
     }
 
     async execute(skill: Skill, execCtx?: ExecuteContext) {
@@ -69,6 +72,19 @@ export class SkillExecutor {
             content: activeFile ? await this.app.vault.cachedRead(activeFile) : ''
         };
 
+        // Inject Canvas Context if applicable
+        if (activeFile && activeFile.extension === 'canvas') {
+            initialContext.canvas_context = await this.fileService.executeReadCanvas(activeFile.path);
+            
+            // Selection awareness
+            const selectedNodes = await this.fileService.getSelectedCanvasNodes();
+            if (selectedNodes.length > 0) {
+                initialContext.canvas_selection = selectedNodes.map(n => `- ${n.text}`).join('\n');
+                // Also override 'selection' for generic skills if in canvas
+                initialContext.selection = initialContext.canvas_selection;
+            }
+        }
+
         try {
             initialContext.clipboard = await navigator.clipboard.readText();
         } catch (e) {
@@ -89,12 +105,43 @@ export class SkillExecutor {
 
             let prompt = this.renderTemplate(skill.template, initialContext);
             
+            // For actions that require an LLM response before acting
+            let resp: string | undefined;
+            if (action === 'insert_below') {
+                new Notice("AI is thinking...", 3000);
+                try {
+                    resp = await this.llm.ask(prompt);
+                } catch (error) {
+                    console.error("LLM execution failed:", error);
+                    new Notice("AI request failed. Check console or API key.");
+                    return; 
+                }
+            }
+
             if (action === 'to_chat') {
                 await this.executeToChat(prompt);
             } else if (action === 'replace') {
                 await this.executeReplace(prompt, activeView, execCtx, textToReplaceStart);
-            } else if (action === 'insert_below') {
-                await this.executeInsert(prompt, activeView, execCtx);
+            } else if (action === 'insert_below' && editor && resp !== undefined) {
+                // If slash command, first remove the slash command trigger text
+                if (execCtx?.source === 'slash' && execCtx.triggerRange) {
+                    editor.replaceRange('', execCtx.triggerRange.start, execCtx.triggerRange.end);
+                }
+                const cursor = editor.getCursor();
+                const textToInsert = `\n${resp}\n`;
+                const lineStr = editor.getLine(cursor.line);
+                editor.replaceRange(textToInsert, { line: cursor.line, ch: lineStr.length });
+                new Notice("Content inserted.");
+            } else if (action === 'to_canvas') {
+                const placeholderId = await this.fileService.createCanvasNode("AI is thinking... 🧠");
+                try {
+                    const aiResp = await this.llm.ask(prompt);
+                    await this.fileService.createCanvasNode(aiResp, placeholderId);
+                    new Notice("Canvas node updated.");
+                } catch (error) {
+                    await this.fileService.createCanvasNode(`Error: ${error instanceof Error ? error.message : String(error)}`, placeholderId);
+                    new Notice("AI request failed.");
+                }
             } else if (action === 'command') {
                 await this.executeCommand(skill.command || prompt, activeView);
             } else {
@@ -195,6 +242,9 @@ export class SkillExecutor {
                 const commandView = activeView || this.app.workspace.getActiveViewOfType(MarkdownView);
                 await this.executeCommand(step.command || renderedPrompt, commandView);
                 stepResult = `[Executed Command: ${step.command || renderedPrompt}]`;
+            } else if (step.action === 'to_canvas') {
+                await this.fileService.createCanvasNode(renderedPrompt);
+                stepResult = '[Created Canvas Node]';
             } else {
                 console.warn(`Unknown action ${step.action} in step ${step.id}`);
             }
