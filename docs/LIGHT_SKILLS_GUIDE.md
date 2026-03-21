@@ -32,8 +32,8 @@
 
 ```yaml
 ---
-name: "技能显示名称"
-action: "replace" # 动作：replace(替换), insert_below(插在下方), to_chat(发送到聊天框)
+action: "replace" # 动作：replace(替换), insert_below(插在下方), to_chat(发送到聊天框), command(执行 Obsidian 命令)
+command: "app:toggle-left-sidebar" # 如果 action 是 command，需指定命令 ID
 ---
 这里是你的 Prompt 提示词模板...
 ```
@@ -45,6 +45,14 @@ action: "replace" # 动作：replace(替换), insert_below(插在下方), to_cha
 | `{{title}}` | 当前笔记的标题。 |
 | `{{content}}` | 当前笔记的全文本内容。 |
 | `{{clipboard}}` | 系统剪贴板内容。 |
+
+> [!TIP]
+> **如何填写命令 (command)？**
+> 1. **推荐：** 直接填写你在“命令面板 (Cmd+P)”中看到的完整名字。
+>    * 例如：`command: "Templater: Open insert template modal"`
+> 2. **进阶：** 填写命令的内部 ID。
+>    * 例如：`command: "templater-obsidian:insert-template"`
+> *插件会自动优先匹配 ID，如果找不到则匹配名字。*
 
 ---
 
@@ -68,6 +76,10 @@ action: ask_user
 [STEP: 步骤3_完成插入]
 action: replace
 {{步骤2_人工确认}}
+
+[STEP: 步骤4_自动保存]
+action: command
+command: editor:save-file
 ```
 
 ---

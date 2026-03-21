@@ -92,6 +92,8 @@ export class SkillExecutor {
                 await this.executeReplace(prompt, activeView, execCtx, textToReplaceStart);
             } else if (action === 'insert_below') {
                 await this.executeInsert(prompt, activeView, execCtx);
+            } else if (action === 'command') {
+                await this.executeCommand(skill.command || prompt);
             } else {
                 console.log(`Action ${action} is not yet implemented.`);
             }
@@ -177,6 +179,9 @@ export class SkillExecutor {
                 // We will just pass the textToReplaceStart so the first replace eats the trigger.
                 await this.executeReplace(renderedPrompt, currentView, execCtx, i === 0 ? textToReplaceStart : undefined);
                 stepResult = '[Replaced in Editor]';
+            } else if (step.action === 'command') {
+                await this.executeCommand(step.command || renderedPrompt);
+                stepResult = `[Executed Command: ${step.command || renderedPrompt}]`;
             } else {
                 console.warn(`Unknown action ${step.action} in step ${step.id}`);
             }
@@ -265,6 +270,45 @@ export class SkillExecutor {
         } catch (error) {
             console.error("Insert LLM execution failed:", error);
              new Notice("AI request failed. Check console or API key.");
+        }
+    }
+
+    private async executeCommand(commandId: string) {
+        if (!commandId) {
+            new Notice("Error: No command ID provided.");
+            return;
+        }
+
+        const cleanCommandId = commandId.trim();
+        // @ts-ignore - access internal commands
+        const commands = this.app.commands?.commands;
+        if (!commands) return;
+
+        let command = commands[cleanCommandId];
+        let idToExecute = cleanCommandId;
+
+        // Fallback: search by name or fuzzy ID (case-insensitive)
+        if (!command) {
+            const query = cleanCommandId.toLowerCase();
+            const found = Object.values(commands).find((c: any) => 
+                c.id.toLowerCase() === query || 
+                c.name.toLowerCase() === query ||
+                c.id.toLowerCase().includes(query) ||
+                c.name.toLowerCase().includes(query)
+            );
+            if (found) {
+                command = found;
+                idToExecute = (found as any).id;
+            }
+        }
+        
+        if (command) {
+            // @ts-ignore
+            this.app.commands.executeCommandById(idToExecute);
+            new Notice(`Successfully executed: ${command.name}`);
+        } else {
+            new Notice(`Command NOT found: "${cleanCommandId}"`, 5000);
+            console.warn(`Command "${cleanCommandId}" not found in Obsidian.`);
         }
     }
 }

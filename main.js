@@ -923,6 +923,8 @@ var SkillExecutor = class {
         await this.executeReplace(prompt, activeView, execCtx, textToReplaceStart);
       } else if (action === "insert_below") {
         await this.executeInsert(prompt, activeView, execCtx);
+      } else if (action === "command") {
+        await this.executeCommand(skill.command || prompt);
       } else {
         console.log(`Action ${action} is not yet implemented.`);
       }
@@ -987,6 +989,9 @@ var SkillExecutor = class {
         const currentView = activeView || this.app.workspace.getActiveViewOfType(import_obsidian3.MarkdownView);
         await this.executeReplace(renderedPrompt, currentView, execCtx, i === 0 ? textToReplaceStart : void 0);
         stepResult = "[Replaced in Editor]";
+      } else if (step.action === "command") {
+        await this.executeCommand(step.command || renderedPrompt);
+        stepResult = `[Executed Command: ${step.command || renderedPrompt}]`;
       } else {
         console.warn(`Unknown action ${step.action} in step ${step.id}`);
       }
@@ -1052,6 +1057,35 @@ ${aiResponse}
     } catch (error) {
       console.error("Insert LLM execution failed:", error);
       new import_obsidian3.Notice("AI request failed. Check console or API key.");
+    }
+  }
+  async executeCommand(commandId) {
+    var _a;
+    if (!commandId) {
+      new import_obsidian3.Notice("Error: No command ID provided.");
+      return;
+    }
+    const cleanCommandId = commandId.trim();
+    const commands = (_a = this.app.commands) == null ? void 0 : _a.commands;
+    if (!commands) return;
+    let command = commands[cleanCommandId];
+    let idToExecute = cleanCommandId;
+    if (!command) {
+      const query = cleanCommandId.toLowerCase();
+      const found = Object.values(commands).find(
+        (c) => c.id.toLowerCase() === query || c.name.toLowerCase() === query || c.id.toLowerCase().includes(query) || c.name.toLowerCase().includes(query)
+      );
+      if (found) {
+        command = found;
+        idToExecute = found.id;
+      }
+    }
+    if (command) {
+      this.app.commands.executeCommandById(idToExecute);
+      new import_obsidian3.Notice(`Successfully executed: ${command.name}`);
+    } else {
+      new import_obsidian3.Notice(`Command NOT found: "${cleanCommandId}"`, 5e3);
+      console.warn(`Command "${cleanCommandId}" not found in Obsidian.`);
     }
   }
 };
@@ -1142,7 +1176,8 @@ var SkillManager = class {
         mode: frontmatter.mode,
         steps,
         icon: frontmatter.icon || "bot",
-        template
+        template,
+        command: frontmatter.command
       };
       this.skills.set(skill.id, skill);
       this.registerCommandForSkill(skill);
@@ -1158,14 +1193,20 @@ var SkillManager = class {
       const blockContent = stepBlocks[i + 1].trim();
       const actionMatch = blockContent.match(/^action:\s*(.+)$/m);
       const action = actionMatch ? actionMatch[1].trim() : "process";
+      const commandMatch = blockContent.match(/^command:\s*(.+)$/m);
+      const command = commandMatch ? commandMatch[1].trim() : void 0;
       let prompt = blockContent;
       if (actionMatch) {
-        prompt = blockContent.replace(actionMatch[0], "").trim();
+        prompt = prompt.replace(actionMatch[0], "").trim();
+      }
+      if (commandMatch) {
+        prompt = prompt.replace(commandMatch[0], "").trim();
       }
       steps.push({
         id,
         action,
-        prompt
+        prompt,
+        command
       });
     }
     return steps;
@@ -1180,7 +1221,12 @@ var SkillManager = class {
       name: `Skill: ${skill.name}`,
       icon: skill.icon,
       callback: () => {
-        void this.executor.execute(skill).catch(console.error);
+        const latestSkill = this.skills.get(skill.id);
+        if (latestSkill) {
+          void this.executor.execute(latestSkill).catch(console.error);
+        } else {
+          new import_obsidian4.Notice(`Error: Skill "${skill.name}" is no longer available.`);
+        }
       }
     });
     this.registeredCommands.add(commandId);

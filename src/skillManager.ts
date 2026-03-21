@@ -1,4 +1,4 @@
-import { App, TAbstractFile, TFile, TFolder, parseFrontMatterAliases, parseYaml } from 'obsidian';
+import { App, Notice, TAbstractFile, TFile, TFolder, parseFrontMatterAliases, parseYaml } from 'obsidian';
 import DeepSeekPlugin from './main';
 import { SkillExecutor } from './skillExecutor';
 
@@ -6,6 +6,7 @@ export interface PipelineStep {
     id: string;
     action: string;
     prompt: string;
+    command?: string;
 }
 
 export interface Skill {
@@ -16,6 +17,7 @@ export interface Skill {
     steps?: PipelineStep[]; // Only populated if mode is 'pipeline'
     icon?: string;
     template: string; // The full body or default prompt
+    command?: string;
 }
 
 export class SkillManager {
@@ -127,7 +129,8 @@ export class SkillManager {
                 mode: frontmatter.mode,
                 steps: steps,
                 icon: frontmatter.icon || 'bot',
-                template: template
+                template: template,
+                command: frontmatter.command
             };
 
             this.skills.set(skill.id, skill);
@@ -151,17 +154,25 @@ export class SkillManager {
             // Extract action: xxx from the block
             const actionMatch = blockContent.match(/^action:\s*(.+)$/m);
             const action = actionMatch ? actionMatch[1].trim() : 'process'; // Default to process
-            
-            // The prompt is everything after the action line, or the whole block if no action line
+
+            // Extract command: xxx from the block
+            const commandMatch = blockContent.match(/^command:\s*(.+)$/m);
+            const command = commandMatch ? commandMatch[1].trim() : undefined;
+
+            // The prompt is everything after the action line and command line, or the whole block
             let prompt = blockContent;
             if (actionMatch) {
-                prompt = blockContent.replace(actionMatch[0], '').trim();
+                prompt = prompt.replace(actionMatch[0], '').trim();
+            }
+            if (commandMatch) {
+                prompt = prompt.replace(commandMatch[0], '').trim();
             }
 
             steps.push({
                 id: id,
                 action: action,
-                prompt: prompt
+                prompt: prompt,
+                command: command
             });
         }
         
@@ -185,7 +196,13 @@ export class SkillManager {
             name: `Skill: ${skill.name}`,
             icon: skill.icon,
             callback: () => {
-                void this.executor.execute(skill).catch(console.error);
+                // Always look up the latest skill from the map to avoid stale closures
+                const latestSkill = this.skills.get(skill.id);
+                if (latestSkill) {
+                    void this.executor.execute(latestSkill).catch(console.error);
+                } else {
+                    new Notice(`Error: Skill "${skill.name}" is no longer available.`);
+                }
             }
         });
 
