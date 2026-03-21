@@ -300,7 +300,7 @@ export class SkillExecutor {
         // Fallback: search by name or fuzzy ID (case-insensitive)
         if (!command) {
             const query = cleanCommandId.toLowerCase();
-            const queryWords = query.split(/\s+/).filter(w => w.length > 1);
+            const queryWords = query.split(/[^a-z0-9\u4e00-\u9fa5]+/i).filter(w => w.length > 1);
 
             // 1. First try: Exact match for Name or ID
             let found = Object.values(commands).find((c: any) => 
@@ -316,13 +316,29 @@ export class SkillExecutor {
                 );
             }
 
-            // 3. Third try: Keyword Intersection (Strongest)
-            // Does the command name/id contain ALL the important words from the query?
+            // 3. Third try: Keyword Scoring (More tolerant than Intersection)
             if (!found && queryWords.length > 0) {
-                found = Object.values(commands).find((c: any) => {
-                    const target = (c.id + " " + c.name).toLowerCase();
-                    return queryWords.every(word => target.includes(word));
-                });
+                let bestMatch: any = null;
+                let maxScore = 0;
+                let minScoreRequired = Math.max(1, Math.ceil(queryWords.length / 2));
+                
+                for (const c of Object.values(commands)) {
+                    const target = ((c as any).id + " " + (c as any).name).toLowerCase();
+                    let score = 0;
+                    for (const word of queryWords) {
+                        if (target.includes(word)) {
+                            score++;
+                        }
+                    }
+                    if (score > maxScore && score >= minScoreRequired) {
+                        maxScore = score;
+                        bestMatch = c;
+                    }
+                }
+                
+                if (bestMatch) {
+                    found = bestMatch;
+                }
             }
 
             if (found) {

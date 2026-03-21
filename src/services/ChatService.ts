@@ -94,8 +94,13 @@ export class ChatService {
         try {
             const finalPrompt = instruction + additionalContext;
 
+            const customSkills = Array.from(this.plugin.skillManager.skills.values())
+                 .map(s => s.name)
+                 .join(', ');
+            const skillsCtx = customSkills ? `\\n\\n[System Info: The user has custom Light Skills installed: ${customSkills}. You can execute these using the run_command tool by providing their name.]` : '';
+
             const messages: ChatMessage[] = [
-                { role: 'system', content: 'You are a helpful AI assistant integrated into Obsidian. You can converse naturally with the user. If they provide note context in [CRITICAL CONTEXT] blocks, ALWAYS check that context first before using any search or read tools to save time and tokens.' }
+                { role: 'system', content: 'You are a helpful AI assistant integrated into Obsidian. You can converse naturally with the user. If they provide note context in [CRITICAL CONTEXT] blocks, ALWAYS check that context first before using any search or read tools to save time and tokens.' + skillsCtx }
             ];
 
             const currentHistory = get(chatMessages);
@@ -197,7 +202,7 @@ export class ChatService {
                 type: "function",
                 function: {
                     name: "run_command",
-                    description: "Execute an Obsidian command. Provide keywords from the Command Palette name/ID.",
+                    description: "Execute an Obsidian command. Provide English keywords (e.g., 'toggle left sidebar', 'local graph', 'focus', 'fast polish'). DO NOT guess exact command IDs with colons or hyphens unless you are certain; just use descriptive keywords.",
                     parameters: { type: "object", properties: { command_id: { type: "string" } }, required: ["command_id"] }
                 }
             }
@@ -229,6 +234,10 @@ export class ChatService {
 
             if (toolCalls.length > 0) {
                 messages.push(resMsg);
+                
+                // Add the explicit tool-calling assistant message into UI store 
+                // so subsequent API prompts can construct valid conversations
+                addMessage({ role: 'assistant', content: fullResponse, tool_calls: toolCalls });
 
                 const results = [];
                 for (const tc of toolCalls) {

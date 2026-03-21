@@ -1501,8 +1501,8 @@ var _Batch = class _Batch {
     this.apply();
     var effects = [];
     var render_effects = [];
-    for (const root7 of root_effects) {
-      __privateMethod(this, _Batch_instances, traverse_effect_tree_fn).call(this, root7, effects, render_effects);
+    for (const root6 of root_effects) {
+      __privateMethod(this, _Batch_instances, traverse_effect_tree_fn).call(this, root6, effects, render_effects);
     }
     if (__privateMethod(this, _Batch_instances, is_deferred_fn).call(this)) {
       __privateMethod(this, _Batch_instances, defer_effects_fn).call(this, render_effects);
@@ -1665,9 +1665,9 @@ is_deferred_fn = function() {
  * @param {Effect[]} effects
  * @param {Effect[]} render_effects
  */
-traverse_effect_tree_fn = function(root7, effects, render_effects) {
-  root7.f ^= CLEAN;
-  var effect2 = root7.first;
+traverse_effect_tree_fn = function(root6, effects, render_effects) {
+  root6.f ^= CLEAN;
+  var effect2 = root6.first;
   while (effect2 !== null) {
     var flags2 = effect2.f;
     var is_branch = (flags2 & (BRANCH_EFFECT | ROOT_EFFECT)) !== 0;
@@ -1745,8 +1745,8 @@ commit_fn = function() {
         if (queued_root_effects.length > 0) {
           current_batch = batch;
           batch.apply();
-          for (const root7 of queued_root_effects) {
-            __privateMethod(_a5 = batch, _Batch_instances, traverse_effect_tree_fn).call(_a5, root7, [], []);
+          for (const root6 of queued_root_effects) {
+            __privateMethod(_a5 = batch, _Batch_instances, traverse_effect_tree_fn).call(_a5, root6, [], []);
           }
           batch.deactivate();
         }
@@ -3076,7 +3076,7 @@ function is_dirty(reaction) {
   }
   return false;
 }
-function schedule_possible_effect_self_invalidation(signal, effect2, root7 = true) {
+function schedule_possible_effect_self_invalidation(signal, effect2, root6 = true) {
   var reactions = signal.reactions;
   if (reactions === null) return;
   if (!async_mode_flag && current_sources !== null && includes.call(current_sources, signal)) {
@@ -3092,7 +3092,7 @@ function schedule_possible_effect_self_invalidation(signal, effect2, root7 = tru
         false
       );
     } else if (effect2 === reaction) {
-      if (root7) {
+      if (root6) {
         set_signal_status(reaction, DIRTY);
       } else if ((reaction.f & CLEAN) !== 0) {
         set_signal_status(reaction, MAYBE_DIRTY);
@@ -6041,8 +6041,10 @@ ${linkedNotesContext}]`;
     }
     try {
       const finalPrompt = instruction + additionalContext;
+      const customSkills = Array.from(this.plugin.skillManager.skills.values()).map((s) => s.name).join(", ");
+      const skillsCtx = customSkills ? `\\n\\n[System Info: The user has custom Light Skills installed: ${customSkills}. You can execute these using the run_command tool by providing their name.]` : "";
       const messages = [
-        { role: "system", content: "You are a helpful AI assistant integrated into Obsidian. You can converse naturally with the user. If they provide note context in [CRITICAL CONTEXT] blocks, ALWAYS check that context first before using any search or read tools to save time and tokens." }
+        { role: "system", content: "You are a helpful AI assistant integrated into Obsidian. You can converse naturally with the user. If they provide note context in [CRITICAL CONTEXT] blocks, ALWAYS check that context first before using any search or read tools to save time and tokens." + skillsCtx }
       ];
       const currentHistory = get2(chatMessages);
       const validRoles = ["user", "assistant", "system", "tool"];
@@ -6132,7 +6134,7 @@ ${linkedNotesContext}]`;
         type: "function",
         function: {
           name: "run_command",
-          description: "Execute an Obsidian command. Provide keywords from the Command Palette name/ID.",
+          description: "Execute an Obsidian command. Provide English keywords (e.g., 'toggle left sidebar', 'local graph', 'focus', 'fast polish'). DO NOT guess exact command IDs with colons or hyphens unless you are certain; just use descriptive keywords.",
           parameters: { type: "object", properties: { command_id: { type: "string" } }, required: ["command_id"] }
         }
       }
@@ -6159,6 +6161,7 @@ ${linkedNotesContext}]`;
       const toolCalls = resMsg.tool_calls || [];
       if (toolCalls.length > 0) {
         messages.push(resMsg);
+        addMessage({ role: "assistant", content: fullResponse, tool_calls: toolCalls });
         const results = [];
         for (const tc of toolCalls) {
           const name = tc.function.name;
@@ -6294,8 +6297,8 @@ function Header($$anchor, $$props) {
 
 // src/ui/components/MessageItem.svelte
 var import_obsidian3 = require("obsidian");
-var root_1 = from_html(`<button class="clickable-icon chat-copy-btn"> </button>`);
-var root2 = from_html(`<div><div class="msg-header"><strong class="chat-sender-label"> </strong> <!></div> <div><!></div></div>`);
+var root_2 = from_html(`<button class="clickable-icon chat-copy-btn"> </button>`);
+var root_1 = from_html(`<div><div class="msg-header"><strong class="chat-sender-label"> </strong> <!></div> <div><!></div></div>`);
 function MessageItem($$anchor, $$props) {
   push($$props, false);
   const senderName = mutable_source();
@@ -6320,55 +6323,65 @@ function MessageItem($$anchor, $$props) {
   });
   legacy_pre_effect_reset();
   init();
-  var div = root2();
-  var div_1 = child(div);
-  var strong = child(div_1);
-  var text2 = child(strong, true);
-  reset(strong);
-  var node = sibling(strong, 2);
+  var fragment = comment();
+  var node = first_child(fragment);
   {
-    var consequent = ($$anchor2) => {
-      var button = root_1();
-      var text_1 = child(button, true);
-      reset(button);
-      template_effect(() => set_text(text_1, get(copyButtonText)));
-      event("click", button, copyContent);
-      append($$anchor2, button);
+    var consequent_2 = ($$anchor2) => {
+      var div = root_1();
+      var div_1 = child(div);
+      var strong = child(div_1);
+      var text2 = child(strong, true);
+      reset(strong);
+      var node_1 = sibling(strong, 2);
+      {
+        var consequent = ($$anchor3) => {
+          var button = root_2();
+          var text_1 = child(button, true);
+          reset(button);
+          template_effect(() => set_text(text_1, get(copyButtonText)));
+          event("click", button, copyContent);
+          append($$anchor3, button);
+        };
+        if_block(node_1, ($$render) => {
+          if (deep_read_state(msg()), untrack(() => msg().role === "assistant")) $$render(consequent);
+        });
+      }
+      reset(div_1);
+      var div_2 = sibling(div_1, 2);
+      let classes;
+      var node_2 = child(div_2);
+      {
+        var consequent_1 = ($$anchor3) => {
+          var text_2 = text();
+          template_effect(() => set_text(text_2, (deep_read_state(msg()), untrack(() => msg().content))));
+          append($$anchor3, text_2);
+        };
+        if_block(node_2, ($$render) => {
+          if (deep_read_state(msg()), untrack(() => msg().role !== "assistant")) $$render(consequent_1);
+        });
+      }
+      reset(div_2);
+      bind_this(div_2, ($$value) => set(contentDiv, $$value), () => get(contentDiv));
+      reset(div);
+      template_effect(() => {
+        set_class(div, 1, (deep_read_state(msg()), untrack(() => `chat-msg role-${msg().role} ${msg().role === "user" ? "chat-msg-user" : msg().role === "assistant" ? "chat-msg-assistant" : msg().role === "tool" ? "chat-msg-tool" : "chat-msg-system"}`)));
+        set_text(text2, get(senderName));
+        classes = set_class(div_2, 1, "msg-content", null, classes, { "chat-whitespace-pre": msg().role !== "assistant" });
+      });
+      append($$anchor2, div);
     };
     if_block(node, ($$render) => {
-      if (deep_read_state(msg()), untrack(() => msg().role === "assistant")) $$render(consequent);
+      if (deep_read_state(msg()), untrack(() => msg().role !== "assistant" || msg().content)) $$render(consequent_2);
     });
   }
-  reset(div_1);
-  var div_2 = sibling(div_1, 2);
-  let classes;
-  var node_1 = child(div_2);
-  {
-    var consequent_1 = ($$anchor2) => {
-      var text_2 = text();
-      template_effect(() => set_text(text_2, (deep_read_state(msg()), untrack(() => msg().content))));
-      append($$anchor2, text_2);
-    };
-    if_block(node_1, ($$render) => {
-      if (deep_read_state(msg()), untrack(() => msg().role !== "assistant")) $$render(consequent_1);
-    });
-  }
-  reset(div_2);
-  bind_this(div_2, ($$value) => set(contentDiv, $$value), () => get(contentDiv));
-  reset(div);
-  template_effect(() => {
-    set_class(div, 1, (deep_read_state(msg()), untrack(() => `chat-msg role-${msg().role} ${msg().role === "user" ? "chat-msg-user" : msg().role === "assistant" ? "chat-msg-assistant" : msg().role === "tool" ? "chat-msg-tool" : "chat-msg-system"}`)));
-    set_text(text2, get(senderName));
-    classes = set_class(div_2, 1, "msg-content", null, classes, { "chat-whitespace-pre": msg().role !== "assistant" });
-  });
-  append($$anchor, div);
+  append($$anchor, fragment);
   pop();
 }
 
 // src/ui/components/PipelineApproval.svelte
 var root_12 = from_html(`<span class="pipeline-status">(Resumed)</span>`);
-var root_2 = from_html(`<span class="pipeline-status">(Cancelled)</span>`);
-var root3 = from_html(`<div><div class="msg-header"><strong class="chat-sender-label"> </strong> <!> <!></div> <p class="pipeline-instruction">AI has generated the following. You can edit it before continuing:</p> <textarea class="chat-input pipeline-edit-area" rows="5"></textarea> <div class="pipeline-buttons"><button class="mod-cta">\u2705 Continue</button> <button>\u274C Cancel Pipeline</button></div></div>`);
+var root_22 = from_html(`<span class="pipeline-status">(Cancelled)</span>`);
+var root2 = from_html(`<div><div class="msg-header"><strong class="chat-sender-label"> </strong> <!> <!></div> <p class="pipeline-instruction">AI has generated the following. You can edit it before continuing:</p> <textarea class="chat-input pipeline-edit-area" rows="5"></textarea> <div class="pipeline-buttons"><button class="mod-cta">\u2705 Continue</button> <button>\u274C Cancel Pipeline</button></div></div>`);
 function PipelineApproval($$anchor, $$props) {
   push($$props, false);
   const $pipelineResolversStore = () => store_get(pipelineResolversStore, "$pipelineResolversStore", $$stores);
@@ -6394,7 +6407,7 @@ function PipelineApproval($$anchor, $$props) {
     }
   }
   init();
-  var div = root3();
+  var div = root2();
   let classes;
   var div_1 = child(div);
   var strong = child(div_1);
@@ -6413,7 +6426,7 @@ function PipelineApproval($$anchor, $$props) {
   var node_1 = sibling(node, 2);
   {
     var consequent_1 = ($$anchor2) => {
-      var span_1 = root_2();
+      var span_1 = root_22();
       append($$anchor2, span_1);
     };
     if_block(node_1, ($$render) => {
@@ -6449,7 +6462,7 @@ function PipelineApproval($$anchor, $$props) {
 
 // src/ui/components/MessageList.svelte
 var root_4 = from_html(`<div class="chat-msg role-assistant chat-msg-assistant"><div class="msg-header"><strong class="chat-sender-label"> </strong></div> <div class="msg-content"></div></div>`);
-var root4 = from_html(`<div class="chat-messages"><!> <!> <!></div>`);
+var root3 = from_html(`<div class="chat-messages"><!> <!> <!></div>`);
 function MessageList($$anchor, $$props) {
   push($$props, false);
   const $chatMessages = () => store_get(chatMessages, "$chatMessages", $$stores);
@@ -6465,7 +6478,7 @@ function MessageList($$anchor, $$props) {
     }
   });
   init();
-  var div = root4();
+  var div = root3();
   var node = child(div);
   MessageItem(node, {
     msg: {
@@ -6562,7 +6575,7 @@ function MessageList($$anchor, $$props) {
 }
 
 // src/ui/components/ChatInput.svelte
-var root5 = from_html(`<div class="chat-input-container"><!> <textarea class="chat-input" placeholder="Type your message... (Shift+enter for newline, Enter to send)"></textarea> <button class="mod-cta">Send</button></div>`);
+var root4 = from_html(`<div class="chat-input-container"><!> <textarea class="chat-input" placeholder="Type your message... (Shift+enter for newline, Enter to send)"></textarea> <button class="mod-cta">Send</button></div>`);
 function ChatInput($$anchor, $$props) {
   push($$props, false);
   const $isProcessing = () => store_get(isProcessing, "$isProcessing", $$stores);
@@ -6581,7 +6594,7 @@ function ChatInput($$anchor, $$props) {
     set(inputText, "");
   }
   init();
-  var div = root5();
+  var div = root4();
   var node = child(div);
   slot(node, $$props, "default", {}, null);
   var textarea = sibling(node, 2);
@@ -6602,7 +6615,7 @@ function ChatInput($$anchor, $$props) {
 
 // src/ui/App.svelte
 var root_13 = from_html(`<div class="pipeline-progress-bar" style="background: var(--interactive-accent); color: var(--text-on-accent); padding: 8px 12px; border-radius: 6px; margin-bottom: 10px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.15); animation: deepseek-fade-in 0.3s ease-out;"><strong style="display: block; font-size: 0.95em; margin-bottom: 2px;"> </strong> <small style="opacity: 0.9;"> </small></div>`);
-var root6 = from_html(`<div class="deepseek-chat-container"><!> <!> <!></div>`);
+var root5 = from_html(`<div class="deepseek-chat-container"><!> <!> <!></div>`);
 function App4($$anchor, $$props) {
   push($$props, false);
   const $pipelineProgress = () => store_get(pipelineProgress, "$pipelineProgress", $$stores);
@@ -6622,7 +6635,7 @@ function App4($$anchor, $$props) {
     chatService().plugin.logger.clear();
   }
   init();
-  var div = root6();
+  var div = root5();
   var node = child(div);
   {
     var consequent = ($$anchor2) => {
@@ -7147,7 +7160,7 @@ ${aiResponse}
     let idToExecute = cleanCommandId;
     if (!command) {
       const query = cleanCommandId.toLowerCase();
-      const queryWords = query.split(/\s+/).filter((w) => w.length > 1);
+      const queryWords = query.split(/[^a-z0-9\u4e00-\u9fa5]+/i).filter((w) => w.length > 1);
       let found = Object.values(commands).find(
         (c) => c.id.toLowerCase() === query || c.name.toLowerCase() === query
       );
@@ -7157,10 +7170,25 @@ ${aiResponse}
         );
       }
       if (!found && queryWords.length > 0) {
-        found = Object.values(commands).find((c) => {
+        let bestMatch = null;
+        let maxScore = 0;
+        let minScoreRequired = Math.max(1, Math.ceil(queryWords.length / 2));
+        for (const c of Object.values(commands)) {
           const target = (c.id + " " + c.name).toLowerCase();
-          return queryWords.every((word) => target.includes(word));
-        });
+          let score = 0;
+          for (const word of queryWords) {
+            if (target.includes(word)) {
+              score++;
+            }
+          }
+          if (score > maxScore && score >= minScoreRequired) {
+            maxScore = score;
+            bestMatch = c;
+          }
+        }
+        if (bestMatch) {
+          found = bestMatch;
+        }
       }
       if (found) {
         command = found;

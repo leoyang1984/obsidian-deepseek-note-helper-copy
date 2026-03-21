@@ -27,6 +27,7 @@
 	}
 </script>
 
+{#if msg.role !== 'assistant' || msg.content}
 <div class={`chat-msg role-${msg.role} ${msg.role === 'user' ? 'chat-msg-user' : (msg.role === 'assistant' ? 'chat-msg-assistant' : (msg.role === 'tool' ? 'chat-msg-tool' : 'chat-msg-system'))}`}>
     <div class="msg-header">
         <strong class="chat-sender-label">{senderName}</strong>
@@ -41,3 +42,4 @@
         {/if}
     </div>
 </div>
+{/if}
