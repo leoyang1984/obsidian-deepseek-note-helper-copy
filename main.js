@@ -594,7 +594,8 @@ To apply the instruction "${instruction}", please call 'update_metadata' or 'app
       if (toolCalls.length > 0) {
         senderLabel.innerText = `${assistantName} (running ${toolCalls.length} tools...)`;
         messages.push(resMsg);
-        const toolPromises = toolCalls.map(async (tc) => {
+        const results = [];
+        for (const tc of toolCalls) {
           const name = tc.function.name;
           const args = JSON.parse(tc.function.arguments || "{}");
           let result = "";
@@ -608,13 +609,13 @@ To apply the instruction "${instruction}", please call 'update_metadata' or 'app
             else if (name === "run_command") result = await this.executeRunCommand(args.command_id);
             else result = `Error: Unknown tool ${name}`;
             this.plugin.logger.log("tool", "tool", `Executed ${name}`, { arguments: args, result });
+            await new Promise((resolve) => setTimeout(resolve, 100));
           } catch (e) {
             result = `Error executing tool: ${e instanceof Error ? e.message : String(e)}`;
             this.plugin.logger.log("tool", "tool", `Failed to execute ${name}`, { arguments: tc.function.arguments, error: result });
           }
-          return { id: tc.id, name, result };
-        });
-        const results = await Promise.all(toolPromises);
+          results.push({ id: tc.id, name, result });
+        }
         for (const res of results) {
           messages.push({
             role: "tool",

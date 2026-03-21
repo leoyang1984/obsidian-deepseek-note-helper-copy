@@ -657,8 +657,9 @@ export class DeepSeekView extends ItemView {
                 // Track the assistant message containing tool calls
                 messages.push(resMsg);
 
-                // Execute all tool calls in parallel
-                const toolPromises = toolCalls.map(async (tc: any) => {
+                // Execute all tool calls sequentially to prevent UI command conflicts
+                const results = [];
+                for (const tc of toolCalls) {
                     const name = tc.function.name;
                     const args = JSON.parse(tc.function.arguments || '{}');
                     let result = '';
@@ -674,14 +675,14 @@ export class DeepSeekView extends ItemView {
                         else result = `Error: Unknown tool ${name}`;
                         
                         this.plugin.logger.log('tool', 'tool', `Executed ${name}`, { arguments: args, result });
+                        // Small delay to allow Obsidian UI to settle between potentially multiple commands
+                        await new Promise(resolve => setTimeout(resolve, 100));
                     } catch (e) {
                         result = `Error executing tool: ${e instanceof Error ? e.message : String(e)}`;
                         this.plugin.logger.log('tool', 'tool', `Failed to execute ${name}`, { arguments: tc.function.arguments, error: result });
                     }
-                    return { id: tc.id, name, result };
-                });
-
-                const results = await Promise.all(toolPromises);
+                    results.push({ id: tc.id, name, result });
+                }
 
                 // Add all results back to messages
                 for (const res of results) {
