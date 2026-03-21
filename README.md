@@ -36,18 +36,22 @@ The latest version introduces **Light Skills**, a Markdown-based DSL that allows
 - **Real-Time Streaming**: Watch responses stream in instantly.
 - **Premium UX**: Draggable, resizable (CSS-based), glassmorphism design, and one-click copy button.
 
+#### 2. 🪄 Slash Command (v1.7.0+)
+- **Immediate Inline Editing**: Type `/ds` directly in the editor to pop up a native menu of your Light Skills. 
+- **In-Place Replacement**: Seamlessly translate, polish, or generate text right where your cursor is, without opening any side panels.
+- **Smart Context Sensing**: The AI intelligently captures your sentence or the entire preceding paragraph if triggered on an empty line.
 - **Default Action**: Set your favorite skill to trigger instantly when you press `Enter` after `/ds`.
 
-#### 3. 🤖 Universal UI Assistant (v1.7.0)
+#### 3. 🤖 Universal UI Assistant (v1.8.0)
 - **Natural Language UI Control**: Tell the AI to "close sidebar", "open local graph", or "refresh Dataview".
 - **Fuzzy Command Engine**: Our "Keyword Intersection" algorithm finds the right Obsidian command even if you don't know the exact name.
+- **Sequential Execution**: Stable multi-command handling with 100ms safety delays.
 - **Cross-Plugin Logic**: Control other plugins (like Templater or Dataview) directly from the chat interface.
 
 #### 4. 🧠 Native Tool Calling (RAG & Management)
 - Supports any OpenAI-compatible API. Native optimizations for **DeepSeek** and **Kimi**.
 - Switch models seamlessly in settings to balance speed, cost, and reasoning power.
 
-#### 2. 🧠 Native Tool Calling (RAG & Management)
 - **`search_vault`**: RAG-level vault-wide search to ground AI answers in your existing knowledge.
 - **`create_note` & `append_to_note`**: Automate note creation and capture ideas from chat directly into your files.
 - **`update_metadata`**: Hands-free management of YAML Properties. Ask AI to "categorize this note" and watch it update your tags automatically.
@@ -87,9 +91,9 @@ This project is licensed under a **Custom Non-Commercial License**. Commercial u
 
 ### 📝 Changelog
 
-- **v1.7.0 (2026-03-20)**: Added **Slash Command (`/ds`)** system and **Universal UI Linkage**. AI now understands natural language commands to control the Obsidian interface, sidebars, and third-party plugins (Dataview, Templater) via a new fuzzy matching engine.
-- **v1.6.1 (2026-03-19)**: Improved Hover UX with immediate input clearing, scrollable context area, and maximized output display.
-- **v1.6.0 (2026-03-18)**: Added **Hover AI Chat** with real-time streaming, movable/resizable floating UI, and immediate context-awareness.
+- **v1.8.0 (2026-03-21)**: The **Universal Assistant** Update. Added sequential tool execution stability, keyword intersection matching, and comprehensive UI linkage guides.
+- **v1.7.0 (2026-03-20)**: Added native **Slash Command (`/ds`)** system for in-place text replacement.
+- **v1.6.1 (2026-03-19)**: Improved Hover UX with immediate input clearing, scrollable context area.
 - **v1.5.1 (2026-03-17)**: Maintenance release. Cleaned up repository and optimized Git synchronization rules.
 
 ---
@@ -116,18 +120,22 @@ This project is licensed under a **Custom Non-Commercial License**. Commercial u
 - **流式输出**：支持打字机效果的实时进度渲染，告别干等。
 - **极致体验**：支持拖拽移动、支持右下角拉伸大小，提供一键复制按钮与毛玻璃质感 UI。
 
+#### 2. 🪄 斜杠命令 (Slash Command - v1.7.0+)
+- **无感行内编辑**：在编辑器中随时输入 `/ds` 即可呼出你的“轻技能”快捷菜单。
+- **原地替换交互**：直接在光标处为你完成翻译、润色或扩写，无需打开侧边栏，全程不打断心流。
+- **智能段落感应**：自动捕获同行的短句内容。如果在空行输入，AI 会自动向上溯源，抓取上一段完整的文字作为处理上下文。
 - **一键回车响应**：设置常用的默认技能后，输入 `/ds` 然后回车即可瞬间触发智能执行。
 
-#### 3. 🤖 全能 UI 管家 (Universal UI Assistant - v1.7.0)
+#### 3. 🤖 全能 UI 管家 (Universal UI Assistant - v1.8.0)
 - **自然语言操控**：直接对 AI 说“帮我关了侧边栏”、“打开局部关系图”或“刷新 Dataview 数据”。
+- **意图顺序执行**：支持连招指令，通过 100ms 延迟确保多级 UI 指令稳定触发。
 - **模糊命令引擎**：采用“关键词交集匹配”算法，不记得准确命令名也没关系，AI 懂你。
 - **跨插件联动**：直接从对话框控制 Templater 插入模板或强刷 Dataview 视图。
 
-#### 4. 🧠 原生工具调用 (RAG 与管理)
+#### 4. 🧠 原生工具调用 (RAG 与管理)面向任务执行
 - 支持任何兼容 OpenAI 格式的 API。针对 **DeepSeek** 和 **Kimi** 进行了原生优化。
 - 在设置中自由切换，兼顾速度、成本与复杂推理能力。
 
-#### 3. 🧠 原生工具调用 (RAG 与管理)
 - **`search_vault`**：RAG 级别的全库搜索，让 AI 的回答基于您的真实笔记。
 - **`create_note` 与 `append_to_note`**：自动创建新笔记，或将聊天灵感一键追加到现有文件末尾。
 - **`update_metadata`**：全自动 YAML 属性管理。只需说“帮我分类”，AI 就会自动补全标签。
@@ -167,8 +175,9 @@ This project is licensed under a **Custom Non-Commercial License**. Commercial u
 
 ### 📝 更新日志
 
-- **v1.7.0 (2026-03-20)**：新增 **Slash Command 斜杠命令 (`/ds`)** 与 **全能 UI 联动管家**。支持深度行内交互菜单、原地文本即刻替换。AI 现在能听懂自然语言指令并操控 Obsidian UI、侧边栏及第三方插件（如 Dataview, Templater）。
-- **v1.6.1 (2026-03-19)**：优化浮窗交互体验，支持即时清空输入框、上下文区域滚动查看、以及输出区域全屏化显示。
+- **v1.8.0 (2026-03-21)**：“全能管家”里程碑。增加串行工具执行稳定性、关键字交集搜索算法、引号清洗逻辑以及全套自然语言指令指南。
+- **v1.7.0 (2026-03-20)**：新增 **Slash Command 斜杠命令 (`/ds`)** 与基础 UI 联动功能。支持原地文本即刻替换。
+- **v1.6.1 (2026-03-19)**：优化浮窗交互体验，支持即时清空输入框。
 - **v1.6.0 (2026-03-18)**：新增**划词浮窗 AI Chat**，支持流式输出、拖拽移动与拉伸大小，显著提升行内交互体验。
 - **v1.5.1 (2026-03-17)**：日常维护。清理仓库冗余数据，优化 Git 同步规则。
 
