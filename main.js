@@ -534,6 +534,20 @@ To apply the instruction "${instruction}", please call 'update_metadata' or 'app
             required: ["directory_path", "instruction"]
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "run_command",
+          description: "Execute an Obsidian command by its ID or name (fuzzy search supported). Use this for UI actions like toggling sidebars, opening graph views, or running other plugin commands.",
+          parameters: {
+            type: "object",
+            properties: {
+              command_id: { type: "string", description: "The ID or name of the command to run, e.g. 'toggle-left-sidebar' or 'Graph view: Open local graph'." }
+            },
+            required: ["command_id"]
+          }
+        }
       }
     ];
     const msgDiv = this.chatContainer.createDiv({ cls: `chat-msg role-assistant` });
@@ -591,6 +605,7 @@ To apply the instruction "${instruction}", please call 'update_metadata' or 'app
             else if (name === "create_note") result = await this.executeCreateNote(args.path, args.content);
             else if (name === "append_to_note") result = await this.executeAppendToNote(args.path, args.content);
             else if (name === "modify_files_in_directory") result = await this.executeModifyDirectory(args.directory_path, args.instruction);
+            else if (name === "run_command") result = await this.executeRunCommand(args.command_id);
             else result = `Error: Unknown tool ${name}`;
             this.plugin.logger.log("tool", "tool", `Executed ${name}`, { arguments: args, result });
           } catch (e) {
@@ -638,6 +653,14 @@ To apply the instruction "${instruction}", please call 'update_metadata' or 'app
     } catch (e) {
       msgDiv.remove();
       throw e;
+    }
+  }
+  async executeRunCommand(commandId) {
+    try {
+      await this.plugin.skillManager.executor.executeCommand(commandId, this.app.workspace.getActiveViewOfType(import_obsidian.MarkdownView));
+      return `Successfully triggered command: ${commandId}`;
+    } catch (e) {
+      return `Error running command ${commandId}: ${e instanceof Error ? e.message : String(e)}`;
     }
   }
   async exportLogs() {

@@ -273,7 +273,7 @@ export class SkillExecutor {
         }
     }
 
-    private async executeCommand(commandId: string, activeView: MarkdownView | null) {
+    public async executeCommand(commandId: string, activeView: MarkdownView | null) {
         if (!commandId) {
             new Notice("Error: No command ID provided.");
             return;
