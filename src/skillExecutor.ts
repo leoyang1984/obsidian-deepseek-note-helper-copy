@@ -1,8 +1,11 @@
-import { App, MarkdownView, Notice, WorkspaceLeaf, Editor, EditorPosition } from 'obsidian';
+import { App, MarkdownView, Notice, WorkspaceLeaf, Editor } from 'obsidian';
+import type { EditorPosition } from 'obsidian';
 import DeepSeekPlugin from './main';
 import { DeepSeekView, DEEPSEEK_VIEW_TYPE } from './view';
-import { Skill } from './skillManager';
+import type { Skill } from './skillManager';
 import { LlmService } from './llmService';
+import { stopRequested, pipelineProgress } from './store';
+import { get } from 'svelte/store';
 
 export interface ExecuteContext {
     editor?: Editor;
@@ -129,18 +132,27 @@ export class SkillExecutor {
         const pipelineContext = { ...initialContext };
         const totalSteps = skill.steps?.length || 0;
 
+        pipelineProgress.set({
+            skillName: skill.name,
+            currentStep: 0,
+            totalSteps,
+            action: 'Initializing...'
+        });
+
         new Notice(`Starting pipeline: ${skill.name} (${totalSteps} steps)`);
 
         for (let i = 0; i < totalSteps; i++) {
             // Check for stop request
-            const view = this.app.workspace.getLeavesOfType(DEEPSEEK_VIEW_TYPE)[0]?.view as DeepSeekView;
-            if (view && view.stopRequested) {
+            if (get(stopRequested)) {
                 new Notice("Pipeline stopped by user.");
                 this.plugin.logger.log('pipeline', 'system', 'Pipeline aborted by stop request.');
+                pipelineProgress.set(null);
                 return;
             }
 
             const step = skill.steps![i];
+            pipelineProgress.update(p => p ? { ...p, currentStep: i + 1, action: step.action } : p);
+
             const renderedPrompt = this.renderTemplate(step.prompt, pipelineContext);
             this.plugin.logger.log('pipeline', 'system', `Executing step: ${step.id}`, { stepId: step.id, action: step.action, prompt: renderedPrompt });
 
@@ -159,10 +171,11 @@ export class SkillExecutor {
                 await new Promise(resolve => setTimeout(resolve, 100));
 
                 const view = this.app.workspace.getLeavesOfType(DEEPSEEK_VIEW_TYPE)[0]?.view as DeepSeekView;
-                if (view) {
-                    const approved = await view.requestUserApproval(step.id, renderedPrompt);
+                if (view && view.chatService) {
+                    const approved = await view.chatService.requestUserApproval(step.id, renderedPrompt);
                     if (approved === null) {
                         new Notice("Pipeline canceled.");
+                        pipelineProgress.set(null);
                         return;
                     }
                     stepResult = approved;
@@ -191,6 +204,7 @@ export class SkillExecutor {
             this.plugin.logger.log('pipeline', 'system', `Step ${step.id} completed`, { result: stepResult });
         }
 
+        pipelineProgress.set(null);
         new Notice(`Pipeline "${skill.name}" completed.`);
     }
 
@@ -204,14 +218,10 @@ export class SkillExecutor {
         // Find the active DeepSeek view
         const leaves = this.app.workspace.getLeavesOfType('deepseek-chat-view');
         if (leaves.length > 0) {
-            const view = leaves[0].view as any; // Cast to any to access inputEl for now
-            if (view && view.inputEl) {
-                view.inputEl.value = prompt;
-                
+            const view = leaves[0].view as any;
+            if (view && view.chatService) {
                 // Programmatically trigger sending
-                if (typeof view.handleSend === 'function') {
-                    void view.handleSend().catch(console.error);
-                }
+                void view.chatService.handleSend(prompt).catch(console.error);
             }
         }
     }

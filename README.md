@@ -91,6 +91,7 @@ This project is licensed under a **Custom Non-Commercial License**. Commercial u
 
 ### 📝 Changelog
 
+- **v2.0.0 (2026-03-21)**: The **Svelte UI Architecture** Update. Completely rewrote the rendering engine from Vanilla JS to Svelte for ultimate performance and maintainability. Added Pipeline execution progress bars, robust inline approval cards, and instantaneous Slash Command eager deletions.
 - **v1.8.0 (2026-03-21)**: The **Universal Assistant** Update. Added sequential tool execution stability, keyword intersection matching, and comprehensive UI linkage guides.
 - **v1.7.0 (2026-03-20)**: Added native **Slash Command (`/ds`)** system for in-place text replacement.
 - **v1.6.1 (2026-03-19)**: Improved Hover UX with immediate input clearing, scrollable context area.
@@ -175,6 +176,7 @@ This project is licensed under a **Custom Non-Commercial License**. Commercial u
 
 ### 📝 更新日志
 
+- **v2.0.0 (2026-03-21)**：“Svelte 响应式架构”里程碑。彻底抛弃了原生 DOM 渲染逻辑，将项目视图层完全重写为基于 Svelte 的现代化组件架构。新增了 Pipeline 流畅的动态执行进度条、上下文内联确认卡片，以及瞬间消除的无感斜杠命令体验。
 - **v1.8.0 (2026-03-21)**：“全能管家”里程碑。增加串行工具执行稳定性、关键字交集搜索算法、引号清洗逻辑以及全套自然语言指令指南。
 - **v1.7.0 (2026-03-20)**：新增 **Slash Command 斜杠命令 (`/ds`)** 与基础 UI 联动功能。支持原地文本即刻替换。
 - **v1.6.1 (2026-03-19)**：优化浮窗交互体验，支持即时清空输入框。

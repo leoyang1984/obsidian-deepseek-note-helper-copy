@@ -1,6 +1,6 @@
 {
   "name": "deepseek-note-helper",
-  "version": "1.8.0",
+  "version": "2.0.0",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -15,6 +15,7 @@
     "@typescript-eslint/eslint-plugin": "^8.56.1",
     "@typescript-eslint/parser": "^8.56.1",
     "esbuild": "^0.27.3",
+    "esbuild-svelte": "^0.9.4",
     "eslint": "^10.0.2",
     "html-to-md": "^0.8.8",
     "obsidian": "^1.12.3",

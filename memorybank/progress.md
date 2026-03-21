@@ -43,8 +43,15 @@
 - [x] **Universal UI Linkage**: Control Obsidian UI via Sidebar Chat using full command fuzzy matching (Keyword Intersection logic).
 - [x] **Sequential Tool Execution**: Stable multi-command handling with 100ms safety delays. <!-- v1.8.0 -->
 
+### 8. V2.0.0 Svelte Architecture Overhaul
+- [x] Completely rewrote `src/view.ts` natively into modular Svelte components.
+- [x] Decoupled business logic into `ChatService.ts` and `FileService.ts`.
+- [x] Streamlined Svelte store reactivity for seamless chat streams and pipeline approvals.
+- [x] Introduced real-time UX for pipelines (progress rendering and inline native step pausing).
+- [x] Instant slash command trigger text erasure.
+
 ## Current Status
-System is stable. Multi-step workflows, Sidebar Chat, the **Hover UI**, and the new **Slash Commands** are fully functional, providing a zero-friction editing experience.
+System has evolved to version 2.0.0. The underlying DOM manipulation has been completely replaced by an elegantly reactive Svelte web app. Multi-step workflows, Sidebar Chat, the **Hover UI**, and the new **Slash Commands** are now highly stable, visually smooth, and ready for massive functional scaling.
 
 ## Next Steps 🚀
 - [ ] Support more variables (date, path, props).

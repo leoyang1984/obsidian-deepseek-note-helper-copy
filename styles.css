@@ -172,7 +172,10 @@
 }
 
 .chat-msg-tool {
-    opacity: 0.5;
+    background-color: var(--background-secondary-alt);
+    border-left: 3px solid var(--text-muted);
+    opacity: 0.85;
+    font-size: 0.9em;
 }
 
 /* DeepSeek Hover UI Styles */

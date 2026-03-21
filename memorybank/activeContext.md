@@ -1,9 +1,10 @@
 # Active Context
 
-## CurrenStable release v1.8.0 ("The Universal Assistant") completed. All major UI interaction features (Slash Commands, Universal UI Control) are implemented, verified, and documented. The plugin has evolved into a system-level agent.
+## Current Active Release: v2.0.0 ("Svelte Engine Resurgence")
+Successfully refactored the entire view layer from procedural Vanilla JS to declarative Svelte components. The plugin is now exceptionally maintainable and robust.
 
-## Recent Focus: v1.8.0 Stability
-- **Sequential Execution**: Resolved UI command race conditions.
-- **Fuzzy Intelligence**: Upgraded to Keyword Intersection matching.
-- **Documentation**: Finalized AI Command Guide and Release Checklist. 
-- Awaiting user feedback on newly added inline Slash Commands (`/ds`).
+## Recent Focus: v2.0.0 UI Polishing
+- **Svelte Store Reactivity**: Centralized all chat context and UI states within Svelte `writable` stores.
+- **Pipeline Progress Tracking**: Introduced UI progress banners to provide clear feedback during background automated tasks.
+- **Inline Approvals**: Refactored the Pipeline Approval card to natively inject itself into the chronological message flow avoiding DOM overlapping issues.
+- Codebase is production-ready for GitHub release.

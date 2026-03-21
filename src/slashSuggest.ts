@@ -1,7 +1,8 @@
-import { App, Editor, EditorPosition, EditorSuggest, EditorSuggestContext, EditorSuggestTriggerInfo, TFile, Notice } from 'obsidian';
+import { App, Editor, EditorSuggest, TFile, Notice } from 'obsidian';
+import type { EditorPosition, EditorSuggestContext, EditorSuggestTriggerInfo } from 'obsidian';
 import DeepSeekPlugin from './main';
-import { Skill } from './skillManager';
-import { ExecuteContext } from './skillExecutor';
+import type { Skill } from './skillManager';
+import type { ExecuteContext } from './skillExecutor';
 
 export class DeepSeekSlashSuggest extends EditorSuggest<Skill> {
     plugin: DeepSeekPlugin;
@@ -64,10 +65,13 @@ export class DeepSeekSlashSuggest extends EditorSuggest<Skill> {
         const start = this.context.start;
         const end = this.context.end;
 
+        // Eagerly delete the trigger text so the UI responds instantly and the dropdown closes cleanly
+        editor.replaceRange('', start, end);
+
         const execCtx: ExecuteContext = {
             editor: editor,
             source: 'slash',
-            triggerRange: { start, end }
+            triggerRange: { start, end: start } // Same since text is deleted
         };
 
         void this.plugin.skillManager.executor.execute(skill, execCtx).catch(e => {

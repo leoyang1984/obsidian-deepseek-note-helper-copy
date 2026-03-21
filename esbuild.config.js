@@ -2,6 +2,8 @@ const esbuild = require("esbuild");
 const process = require("process");
 const fs = require("fs");
 const path = require("path");
+const esbuildSvelte = require("esbuild-svelte");
+const sveltePreprocess = require("svelte-preprocess");
 
 const banner =
     `/*
@@ -28,6 +30,12 @@ esbuild.build({
     banner: { js: banner },
     entryPoints: ["src/main.ts"],
     bundle: true,
+    plugins: [
+        esbuildSvelte({
+            compilerOptions: { css: 'injected' },
+            preprocess: sveltePreprocess()
+        })
+    ],
     external: [
         "obsidian", "electron", "@codemirror/autocomplete", "@codemirror/collab",
         "@codemirror/commands", "@codemirror/language", "@codemirror/lint",
@@ -41,7 +49,7 @@ esbuild.build({
     logLevel: "info",
     sourcemap: prod ? false : "inline",
     treeShaking: true,
-    outfile: "main.js",
+    outfile: path.join(dir, "main.js"),
 }).then(() => {
     // Post-build actions for release packaging
     if (prod) {
