@@ -590,11 +590,11 @@ export class DeepSeekView extends ItemView {
                 type: "function",
                 function: {
                     name: "run_command",
-                    description: "Execute an Obsidian command by its ID or name (fuzzy search supported). Use this for UI actions like toggling sidebars, opening graph views, or running other plugin commands.",
+                    description: "Execute an Obsidian command. Provide keywords from the Command Palette name/ID. Tip: Including the plugin name (e.g. 'Templater' or 'Graph') helps matching. For example: 'toggle-left-sidebar' or 'Graph local graph'.",
                     parameters: {
                         type: "object",
                         properties: {
-                            command_id: { type: "string", description: "The ID or name of the command to run, e.g. 'toggle-left-sidebar' or 'Graph view: Open local graph'." }
+                            command_id: { type: "string", description: "Keywords or ID of the command, e.g. 'open local graph' or 'Templater insert'." }
                         },
                         required: ["command_id"]
                     }

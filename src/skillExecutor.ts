@@ -290,12 +290,31 @@ export class SkillExecutor {
         // Fallback: search by name or fuzzy ID (case-insensitive)
         if (!command) {
             const query = cleanCommandId.toLowerCase();
-            const found = Object.values(commands).find((c: any) => 
+            const queryWords = query.split(/\s+/).filter(w => w.length > 1);
+
+            // 1. First try: Exact match for Name or ID
+            let found = Object.values(commands).find((c: any) => 
                 c.id.toLowerCase() === query || 
-                c.name.toLowerCase() === query ||
-                c.id.toLowerCase().includes(query) ||
-                c.name.toLowerCase().includes(query)
+                c.name.toLowerCase() === query
             );
+
+            // 2. Second try: Partial substring match (original logic)
+            if (!found) {
+                found = Object.values(commands).find((c: any) => 
+                    c.id.toLowerCase().includes(query) || 
+                    c.name.toLowerCase().includes(query)
+                );
+            }
+
+            // 3. Third try: Keyword Intersection (Strongest)
+            // Does the command name/id contain ALL the important words from the query?
+            if (!found && queryWords.length > 0) {
+                found = Object.values(commands).find((c: any) => {
+                    const target = (c.id + " " + c.name).toLowerCase();
+                    return queryWords.every(word => target.includes(word));
+                });
+            }
+
             if (found) {
                 command = found;
                 idToExecute = (found as any).id;
