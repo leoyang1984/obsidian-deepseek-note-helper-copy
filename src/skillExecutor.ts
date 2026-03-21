@@ -279,7 +279,7 @@ export class SkillExecutor {
             return;
         }
 
-        const cleanCommandId = commandId.trim();
+        const cleanCommandId = commandId.trim().replace(/^["']|["']$/g, '');
         // @ts-ignore - access internal commands
         const commands = this.app.commands?.commands;
         if (!commands) return;
