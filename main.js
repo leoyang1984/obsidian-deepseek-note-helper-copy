@@ -1090,7 +1090,7 @@ ${aiResponse}
       new import_obsidian3.Notice("Error: No command ID provided.");
       return;
     }
-    const cleanCommandId = commandId.trim().replace(/^["']|["']$/g, "");
+    const cleanCommandId = commandId.trim().replace(/^["']+|["']+$/g, "");
     const commands = (_a = this.app.commands) == null ? void 0 : _a.commands;
     if (!commands) return;
     let command = commands[cleanCommandId];
